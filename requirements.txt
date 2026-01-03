@@ -1,0 +1,4 @@
+# Biblioteki do symulacji i wizualizacji
+numpy
+matplotlib
+scipy
