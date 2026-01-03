@@ -1,120 +1,57 @@
-"""
-Moduł fizyki symulacji lądowania rakiety.
-Zawiera stałe fizyczne, równania ruchu i funkcje pomocnicze.
-"""
-
 import numpy as np
 
-# Stałe fizyczne
-G_KSIEZYC = 1.62  # Przyspieszenie grawitacyjne na Księżycu [m/s^2]
-G_ZIEMIA = 9.81   # Przyspieszenie grawitacyjne na Ziemi [m/s^2]
+GRAWITACJA_KSIEZYC = 1.62
+GRAWITACJA_ZIEMIA = 9.81
 
-# Parametry domyślne
-MASA_PUSTA = 1000.0  # Masa rakiety bez paliwa [kg]
-MASA_PALIWA_MAX = 500.0  # Maksymalna masa paliwa [kg]
-CIEG_MAX = 4000.0  # Maksymalny ciąg silnika [N]
-ZUZYCIE_PALIWA = 0.5  # Zużycie paliwa [kg/s] przy pełnym ciągu
+MASA_RAKIETY_PUSTA = 1000.0
+MASA_PALIWA_MAKSYMALNA = 500.0
+CIEG_MAKSYMALNY = 4000.0
+ZUZYCIE_PALIWA_NA_SEKUNDE = 0.5
 
 
-def przyspieszenie(masa, cieg, grawitacja=G_KSIEZYC):
-    """
-    Oblicza przyspieszenie rakiety według II zasady Newtona.
-    
-    Args:
-        masa: Masa całkowita rakiety [kg]
-        cieg: Ciąg silnika [N]
-        grawitacja: Przyspieszenie grawitacyjne [m/s^2]
-    
-    Returns:
-        Przyspieszenie [m/s^2] (dodatnie w górę)
-    """
-    if masa <= 0:
+def przyspieszenie(masa_calkowita, cieg_silnika, grawitacja=GRAWITACJA_KSIEZYC):
+    if masa_calkowita <= 0:
         return 0.0
-    return (cieg / masa) - grawitacja
+    return (cieg_silnika / masa_calkowita) - grawitacja
 
 
-def zuzycie_paliwa_dt(cieg, dt, cieg_max=CIEG_MAX, zuzycie_max=ZUZYCIE_PALIWA):
-    """
-    Oblicza zużycie paliwa w danym kroku czasowym.
-    
-    Args:
-        cieg: Aktualny ciąg silnika [N]
-        dt: Krok czasowy [s]
-        cieg_max: Maksymalny ciąg [N]
-        zuzycie_max: Maksymalne zużycie paliwa [kg/s]
-    
-    Returns:
-        Masa zużytego paliwa [kg]
-    """
-    if cieg <= 0 or cieg_max <= 0:
+def zuzycie_paliwa_w_kroku_czasowym(cieg_silnika, krok_czasowy, 
+                                     cieg_maksymalny=CIEG_MAKSYMALNY, 
+                                     zuzycie_maksymalne=ZUZYCIE_PALIWA_NA_SEKUNDE):
+    if cieg_silnika <= 0 or cieg_maksymalny <= 0:
         return 0.0
-    proporcja = cieg / cieg_max
-    return proporcja * zuzycie_max * dt
+    proporcja_ciagu = cieg_silnika / cieg_maksymalny
+    return proporcja_ciagu * zuzycie_maksymalne * krok_czasowy
 
 
-def energia_kinetyczna(masa, predkosc):
-    """
-    Oblicza energię kinetyczną.
-    
-    Args:
-        masa: Masa [kg]
-        predkosc: Prędkość [m/s]
-    
-    Returns:
-        Energia kinetyczna [J]
-    """
-    return 0.5 * masa * predkosc**2
+def energia_kinetyczna(masa_calkowita, predkosc_calkowita):
+    return 0.5 * masa_calkowita * predkosc_calkowita**2
 
 
-def energia_potencjalna(masa, wysokosc, grawitacja=G_KSIEZYC):
-    """
-    Oblicza energię potencjalną.
-    
-    Args:
-        masa: Masa [kg]
-        wysokosc: Wysokość [m]
-        grawitacja: Przyspieszenie grawitacyjne [m/s^2]
-    
-    Returns:
-        Energia potencjalna [J]
-    """
-    return masa * grawitacja * wysokosc
+def energia_potencjalna(masa_calkowita, wysokosc, grawitacja=GRAWITACJA_KSIEZYC):
+    return masa_calkowita * grawitacja * wysokosc
 
 
-def czas_do_ladowania(wysokosc, predkosc, przyspieszenie_grawitacji=G_KSIEZYC):
-    """
-    Przybliżony czas do lądowania przy zerowym ciągu.
-    Rozwiązanie równania: h + v*t - 0.5*g*t^2 = 0
-    
-    Args:
-        wysokosc: Wysokość [m]
-        predkosc: Prędkość [m/s] (dodatnia w górę)
-        przyspieszenie_grawitacji: Przyspieszenie grawitacyjne [m/s^2]
-    
-    Returns:
-        Czas do lądowania [s] lub None jeśli nie można obliczyć
-    """
+def czas_do_ladowania(wysokosc, predkosc_pionowa, grawitacja=GRAWITACJA_KSIEZYC):
     if wysokosc <= 0:
         return 0.0
     
-    # Równanie kwadratowe: -0.5*g*t^2 + v*t + h = 0
-    a = -0.5 * przyspieszenie_grawitacji
-    b = predkosc
-    c = wysokosc
+    wspolczynnik_a = -0.5 * grawitacja
+    wspolczynnik_b = predkosc_pionowa
+    wspolczynnik_c = wysokosc
     
-    delta = b**2 - 4*a*c
+    delta = wspolczynnik_b**2 - 4*wspolczynnik_a*wspolczynnik_c
     if delta < 0:
         return None
     
-    t1 = (-b + np.sqrt(delta)) / (2*a)
-    t2 = (-b - np.sqrt(delta)) / (2*a)
+    czas_1 = (-wspolczynnik_b + np.sqrt(delta)) / (2*wspolczynnik_a)
+    czas_2 = (-wspolczynnik_b - np.sqrt(delta)) / (2*wspolczynnik_a)
     
-    # Wybieramy dodatni czas
-    if t1 > 0 and t2 > 0:
-        return min(t1, t2)
-    elif t1 > 0:
-        return t1
-    elif t2 > 0:
-        return t2
+    if czas_1 > 0 and czas_2 > 0:
+        return min(czas_1, czas_2)
+    elif czas_1 > 0:
+        return czas_1
+    elif czas_2 > 0:
+        return czas_2
     else:
         return None

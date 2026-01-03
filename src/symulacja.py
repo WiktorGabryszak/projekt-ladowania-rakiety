@@ -1,8 +1,3 @@
-"""
-Główna klasa Symulacji orkiestrująca lądowanie rakiety.
-Zarządza pętlą czasową, zapisem danych i warunkami zakończenia.
-"""
-
 import numpy as np
 import os
 import json
@@ -13,48 +8,31 @@ from src import config
 
 
 class Symulacja:
-    """
-    Zarządza symulacją lądowania rakiety.
-    """
-    
     def __init__(self, 
-                 dt=config.DT,
-                 max_czas=config.MAX_CZAS,
-                 autopilot_enabled=True,
+                 krok_czasowy=config.KROK_CZASOWY_SYMULACJI,
+                 czas_maksymalny=config.CZAS_MAKSYMALNY_SYMULACJI,
+                 czy_autopilot_wlaczony=True,
                  planeta='ksiezyc'):
-        """
-        Inicjalizuje symulację.
+        self.krok_czasowy = krok_czasowy
+        self.czas_maksymalny = czas_maksymalny
+        self.czy_autopilot_wlaczony = czy_autopilot_wlaczony
         
-        Args:
-            dt: Krok czasowy symulacji [s]
-            max_czas: Maksymalny czas symulacji [s]
-            autopilot_enabled: Czy włączyć autopilota
-            planeta: Klucz planety z config.PLANETY
-        """
-        self.dt = dt
-        self.max_czas = max_czas
-        self.autopilot_enabled = autopilot_enabled
-        
-        # Ustawienie planety
         if planeta not in config.PLANETY:
-            print(f"⚠ Nieznana planeta '{planeta}', używam Księżyca")
+            print(f"Nieznana planeta '{planeta}', uzywam Ksiezyca")
             planeta = 'ksiezyc'
         
-        self.planeta_klucz = planeta
-        self.planeta_dane = config.PLANETY[planeta]
-        self.grawitacja = self.planeta_dane['grawitacja']
+        self.klucz_planety = planeta
+        self.dane_planety = config.PLANETY[planeta]
+        self.grawitacja = self.dane_planety['grawitacja']
         
-        # Utworzenie rakiety
         self.rakieta = Rakieta(grawitacja=self.grawitacja)
         
-        # Utworzenie autopilota
-        if autopilot_enabled:
+        if czy_autopilot_wlaczony:
             self.autopilot = Autopilot(self.rakieta)
         else:
             self.autopilot = None
         
-        # Historia danych
-        self.historia = {
+        self.historia_danych = {
             'czas': [],
             'x': [],
             'y': [],
@@ -70,189 +48,137 @@ class Symulacja:
         }
         
         self.czas_aktualny = 0.0
-        self.krok = 0
-        self.zakonczona = False
-        self.sukces = False
-        self.komunikat = ""
+        self.numer_kroku = 0
+        self.czy_zakonczona = False
+        self.czy_sukces = False
+        self.komunikat_koncowy = ""
         
-    def zapisz_stan(self):
-        """Zapisuje aktualny stan rakiety do historii."""
-        stan = self.rakieta.get_stan()
-        self.historia['czas'].append(self.czas_aktualny)
+    def zapisz_aktualny_stan(self):
+        stan = self.rakieta.pobierz_stan()
+        self.historia_danych['czas'].append(self.czas_aktualny)
         for klucz, wartosc in stan.items():
-            if klucz in self.historia:
-                self.historia[klucz].append(wartosc)
+            if klucz in self.historia_danych:
+                self.historia_danych[klucz].append(wartosc)
     
-    def krok_symulacji(self):
-        """
-        Wykonuje jeden krok symulacji.
+    def wykonaj_krok_symulacji(self):
+        self.zapisz_aktualny_stan()
         
-        Returns:
-            True jeśli symulacja powinna być kontynuowana, False jeśli zakończona
-        """
-        # Zapisz stan przed aktualizacją
-        self.zapisz_stan()
+        if self.czy_autopilot_wlaczony and self.autopilot:
+            cieg_zadany, kat_nachylenia = self.autopilot.oblicz_sterowanie(self.krok_czasowy)
+            self.rakieta.ustaw_cieg(cieg_zadany)
+            self.rakieta.ustaw_kat(kat_nachylenia)
         
-        # Autopilot oblicza sterowanie
-        if self.autopilot_enabled and self.autopilot:
-            cieg, kat = self.autopilot.oblicz_sterowanie(self.dt)
-            self.rakieta.ustaw_cieg(cieg)
-            self.rakieta.ustaw_kat(kat)
+        self.rakieta.aktualizuj(self.krok_czasowy)
         
-        # Aktualizacja fizyki rakiety
-        self.rakieta.aktualizuj(self.dt)
+        self.czas_aktualny += self.krok_czasowy
+        self.numer_kroku += 1
         
-        # Aktualizacja czasu
-        self.czas_aktualny += self.dt
-        self.krok += 1
-        
-        # Sprawdzenie warunków zakończenia
         return self.sprawdz_warunki_zakonczenia()
     
     def sprawdz_warunki_zakonczenia(self):
-        """
-        Sprawdza czy symulacja powinna się zakończyć.
-        
-        Returns:
-            True jeśli kontynuować, False jeśli zakończyć
-        """
-        # Przekroczenie maksymalnego czasu
-        if self.czas_aktualny >= self.max_czas:
-            self.zakonczona = True
-            self.sukces = False
-            self.komunikat = "Przekroczono maksymalny czas symulacji"
+        if self.czas_aktualny >= self.czas_maksymalny:
+            self.czy_zakonczona = True
+            self.czy_sukces = False
+            self.komunikat_koncowy = "Przekroczono maksymalny czas symulacji"
             return False
         
-        # Sprawdzenie lądowania
-        if self.rakieta.wylad():
-            self.zakonczona = True
-            predkosc_ladowania = abs(self.rakieta.vy)
+        if self.rakieta.czy_wyladowal():
+            self.czy_zakonczona = True
+            predkosc_przy_ladowaniu = abs(self.rakieta.predkosc_y)
             
-            if predkosc_ladowania <= config.PREDKOSC_LADOWANIA_MAX:
-                self.sukces = True
-                self.komunikat = (f"Udane lądowanie! Prędkość: {predkosc_ladowania:.2f} m/s, "
-                                f"Pozycja: x={self.rakieta.x:.1f}m")
+            if predkosc_przy_ladowaniu <= config.PREDKOSC_LADOWANIA_MAKSYMALNA:
+                self.czy_sukces = True
+                self.komunikat_koncowy = (f"Udane lądowanie! Prędkość: {predkosc_przy_ladowaniu:.2f} m/s, "
+                                f"Pozycja: x={self.rakieta.pozycja_x:.1f}m")
             else:
-                self.sukces = False
-                self.komunikat = (f"Katastrofa! Zbyt duża prędkość lądowania: "
-                                f"{predkosc_ladowania:.2f} m/s")
+                self.czy_sukces = False
+                self.komunikat_koncowy = (f"Katastrofa! Zbyt duża prędkość lądowania: "
+                                f"{predkosc_przy_ladowaniu:.2f} m/s")
             return False
         
-        # Rakieta leci w górę i jest wysoko
-        if self.rakieta.y > config.WYSOKOSC_POCZATKOWA * 2:
-            self.zakonczona = True
-            self.sukces = False
-            self.komunikat = "Rakieta opuściła strefę symulacji"
+        if self.rakieta.pozycja_y > config.WYSOKOSC_STARTOWA * 2:
+            self.czy_zakonczona = True
+            self.czy_sukces = False
+            self.komunikat_koncowy = "Rakieta opuściła strefę symulacji"
             return False
         
-        # Kontynuuj symulację
         return True
     
-    def uruchom(self, verbose=True):
-        """
-        Uruchamia pełną symulację.
-        
-        Args:
-            verbose: Czy wyświetlać komunikaty postępu
-            
-        Returns:
-            Dict z wynikami symulacji
-        """
-        if verbose:
+    def uruchom(self, czy_wyswietlac_postep=True):
+        if czy_wyswietlac_postep:
             print("=" * 60)
             print("SYMULACJA LĄDOWANIA RAKIETY")
             print("=" * 60)
-            print(f"Planeta: {self.planeta_dane['nazwa']}")
+            print(f"Planeta: {self.dane_planety['nazwa']}")
             print(f"Grawitacja: {self.grawitacja:.2f} m/s²")
             print(f"Warunki początkowe:")
-            print(f"  Wysokość: {self.rakieta.y:.1f} m")
-            print(f"  Prędkość pionowa: {self.rakieta.vy:.1f} m/s")
-            print(f"  Prędkość pozioma: {self.rakieta.vx:.1f} m/s")
+            print(f"  Wysokość: {self.rakieta.pozycja_y:.1f} m")
+            print(f"  Prędkość pionowa: {self.rakieta.predkosc_y:.1f} m/s")
+            print(f"  Prędkość pozioma: {self.rakieta.predkosc_x:.1f} m/s")
             print(f"  Masa całkowita: {self.rakieta.masa_calkowita:.1f} kg")
-            print(f"  Paliwo: {self.rakieta.masa_paliwa:.1f} kg")
-            print(f"  Autopilot: {'TAK' if self.autopilot_enabled else 'NIE'}")
+            print(f"  Paliwo: {self.rakieta.masa_paliwa_aktualna:.1f} kg")
+            print(f"  Autopilot: {'TAK' if self.czy_autopilot_wlaczony else 'NIE'}")
             print("=" * 60)
             print()
         
-        # Pętla symulacji
-        kontynuuj = True
-        while kontynuuj:
-            kontynuuj = self.krok_symulacji()
+        czy_kontynuowac = True
+        while czy_kontynuowac:
+            czy_kontynuowac = self.wykonaj_krok_symulacji()
             
-            # Wyświetlanie postępu co sekundę
-            if verbose and self.krok % int(1.0 / self.dt) == 0:
+            if czy_wyswietlac_postep and self.numer_kroku % int(1.0 / self.krok_czasowy) == 0:
                 print(f"t={self.czas_aktualny:6.1f}s | "
-                      f"y={self.rakieta.y:7.1f}m | "
-                      f"vy={self.rakieta.vy:6.1f}m/s | "
-                      f"paliwo={self.rakieta.masa_paliwa:5.1f}kg | "
-                      f"ciąg={self.rakieta.cieg:6.0f}N")
+                      f"y={self.rakieta.pozycja_y:7.1f}m | "
+                      f"vy={self.rakieta.predkosc_y:6.1f}m/s | "
+                      f"paliwo={self.rakieta.masa_paliwa_aktualna:5.1f}kg | "
+                      f"ciąg={self.rakieta.cieg_aktualny:6.0f}N")
         
-        # Zapisz ostatni stan
-        self.zapisz_stan()
+        self.zapisz_aktualny_stan()
         
-        if verbose:
+        if czy_wyswietlac_postep:
             print()
             print("=" * 60)
             print("KONIEC SYMULACJI")
             print("=" * 60)
-            print(f"Status: {self.komunikat}")
+            print(f"Status: {self.komunikat_koncowy}")
             print(f"Czas symulacji: {self.czas_aktualny:.2f} s")
-            print(f"Końcowa wysokość: {self.rakieta.y:.2f} m")
-            print(f"Końcowa prędkość: {self.rakieta.predkosc:.2f} m/s")
-            print(f"Pozostałe paliwo: {self.rakieta.masa_paliwa:.2f} kg")
+            print(f"Końcowa wysokość: {self.rakieta.pozycja_y:.2f} m")
+            print(f"Końcowa prędkość: {self.rakieta.predkosc_calkowita:.2f} m/s")
+            print(f"Pozostałe paliwo: {self.rakieta.masa_paliwa_aktualna:.2f} kg")
             print("=" * 60)
         
-        return self.get_wyniki()
+        return self.pobierz_wyniki()
     
-    def get_wyniki(self):
-        """
-        Zwraca wyniki symulacji.
-        
-        Returns:
-            Dict z wynikami i historią
-        """
+    def pobierz_wyniki(self):
         return {
-            'sukces': self.sukces,
-            'komunikat': self.komunikat,
+            'sukces': self.czy_sukces,
+            'komunikat': self.komunikat_koncowy,
             'czas_symulacji': self.czas_aktualny,
-            'stan_koncowy': self.rakieta.get_stan(),
-            'historia': self.historia,
+            'stan_koncowy': self.rakieta.pobierz_stan(),
+            'historia': self.historia_danych,
             'planeta': {
-                'klucz': self.planeta_klucz,
-                'nazwa': self.planeta_dane['nazwa'],
+                'klucz': self.klucz_planety,
+                'nazwa': self.dane_planety['nazwa'],
                 'grawitacja': self.grawitacja,
-                'opis': self.planeta_dane['opis']
+                'opis': self.dane_planety['opis']
             },
             'parametry': {
-                'dt': self.dt,
-                'autopilot': self.autopilot_enabled,
-                'wysokosc_poczatkowa': config.WYSOKOSC_POCZATKOWA,
-                'predkosc_poczatkowa': config.PREDKOSC_POCZATKOWA
+                'dt': self.krok_czasowy,
+                'autopilot': self.czy_autopilot_wlaczony,
+                'wysokosc_poczatkowa': config.WYSOKOSC_STARTOWA,
+                'predkosc_poczatkowa': config.PREDKOSC_PIONOWA_STARTOWA
             }
         }
     
     def zapisz_do_pliku(self, nazwa_pliku=None):
-        """
-        Zapisuje wyniki symulacji do pliku JSON.
+        os.makedirs(config.KATALOG_DANYCH_WYJSCIOWYCH, exist_ok=True)
         
-        Args:
-            nazwa_pliku: Nazwa pliku (opcjonalna)
-            
-        Returns:
-            Ścieżka do zapisanego pliku
-        """
-        # Tworzenie katalogu jeśli nie istnieje
-        os.makedirs(config.KATALOG_DANYCH, exist_ok=True)
-        
-        # Generowanie nazwy pliku
         if nazwa_pliku is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            nazwa_pliku = f"{config.NAZWA_PLIKU_DANYCH}_{timestamp}.json"
+            znacznik_czasu = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nazwa_pliku = f"{config.NAZWA_BAZOWA_PLIKU_DANYCH}_{znacznik_czasu}.json"
         
-        sciezka = os.path.join(config.KATALOG_DANYCH, nazwa_pliku)
+        sciezka_pliku = os.path.join(config.KATALOG_DANYCH_WYJSCIOWYCH, nazwa_pliku)
         
-        # Konwersja numpy arrays do list
-        wyniki = self.get_wyniki()
+        wyniki = self.pobierz_wyniki()
         for klucz in wyniki['historia']:
             if isinstance(wyniki['historia'][klucz], np.ndarray):
                 wyniki['historia'][klucz] = wyniki['historia'][klucz].tolist()
@@ -260,8 +186,7 @@ class Symulacja:
                 wyniki['historia'][klucz] = [float(x) if isinstance(x, (np.floating, np.integer)) 
                                              else x for x in wyniki['historia'][klucz]]
         
-        # Zapis do pliku
-        with open(sciezka, 'w', encoding='utf-8') as f:
-            json.dump(wyniki, f, indent=2, ensure_ascii=False)
+        with open(sciezka_pliku, 'w', encoding='utf-8') as plik:
+            json.dump(wyniki, plik, indent=2, ensure_ascii=False)
         
-        return sciezka
+        return sciezka_pliku

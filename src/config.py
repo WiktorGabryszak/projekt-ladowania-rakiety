@@ -1,27 +1,18 @@
-"""
-Konfiguracja symulacji lądowania rakiety.
-Zawiera wszystkie parametry symulacji, rakiety i środowiska.
-"""
+KROK_CZASOWY_SYMULACJI = 0.1
+CZAS_MAKSYMALNY_SYMULACJI = 300.0
+DOKLADNOSC_WYKRYWANIA_LADOWANIA = 0.01
 
-# Parametry symulacji
-DT = 0.1  # Krok czasowy symulacji [s]
-MAX_CZAS = 300.0  # Maksymalny czas symulacji [s]
-DOKLADNOSC_LADOWANIA = 0.01  # Dokładność wykrycia lądowania [m]
+WYSOKOSC_STARTOWA = 1000.0
+PREDKOSC_PIONOWA_STARTOWA = -50.0
+POZYCJA_POZIOMA_STARTOWA = 0.0
+PREDKOSC_POZIOMA_STARTOWA = 10.0
 
-# Warunki początkowe
-WYSOKOSC_POCZATKOWA = 1000.0  # Wysokość startowa [m]
-PREDKOSC_POCZATKOWA = -50.0  # Prędkość startowa [m/s] (ujemna = w dół)
-POZYCJA_X_POCZATKOWA = 0.0  # Pozycja boczna startowa [m]
-PREDKOSC_X_POCZATKOWA = 10.0  # Prędkość boczna startowa [m/s]
+MASA_RAKIETY_PUSTA = 1000.0
+MASA_PALIWA_STARTOWA = 500.0
+CIEG_MAKSYMALNY_SILNIKA = 8000.0
+ZUZYCIE_PALIWA_NA_SEKUNDE = 0.5
 
-# Parametry rakiety
-MASA_PUSTA = 1000.0  # Masa rakiety bez paliwa [kg]
-MASA_PALIWA_POCZATKOWA = 500.0  # Początkowa masa paliwa [kg]
-CIEG_MAX = 8000.0  # Maksymalny ciąg silnika [N] (zwiększony dla lepszej kontroli)
-ZUZYCIE_PALIWA = 0.5  # Zużycie paliwa przy pełnym ciągu [kg/s]
-
-# Parametry środowiska
-GRAWITACJA = 1.62  # Przyspieszenie grawitacyjne Księżyca [m/s^2]
+GRAWITACJA_DOMYSLNA = 1.62
 
 # Definicje planet
 PLANETY = {
@@ -76,30 +67,26 @@ PLANETY = {
     }
 }
 
-# Domyślna planeta
 AKTUALNA_PLANETA = 'ksiezyc'
 
-# Parametry autopilota
-KP_WYSOKOSC = 2.5  # Współczynnik P dla regulatora wysokości (zwiększony dla lepszej kontroli)
-KD_WYSOKOSC = 3.0  # Współczynnik D dla regulatora wysokości (zwiększony)
-KI_WYSOKOSC = 0.05  # Współczynnik I dla regulatora wysokości (zwiększony)
+WSPOLCZYNNIK_PROPORCJONALNY_WYSOKOSC = 2.5
+WSPOLCZYNNIK_ROZNICZKUJACY_WYSOKOSC = 3.0
+WSPOLCZYNNIK_CALKUJACY_WYSOKOSC = 0.05
 
-KP_POZIOM = 0.2  # Współczynnik P dla regulatora poziomu
-KD_POZIOM = 0.5  # Współczynnik D dla regulatora poziomu
+WSPOLCZYNNIK_PROPORCJONALNY_POZIOM = 0.2
+WSPOLCZYNNIK_ROZNICZKUJACY_POZIOM = 0.5
 
-PREDKOSC_LADOWANIA_MAX = 2.0  # Maksymalna bezpieczna prędkość lądowania [m/s]
-MARGINES_BEZPIECZENSTWA = 1.5  # Margines bezpieczeństwa dla suicide burn
+PREDKOSC_LADOWANIA_MAKSYMALNA = 2.0
+MARGINES_BEZPIECZENSTWA_SUICIDE_BURN = 1.5
 
-# Parametry logowania i zapisu
-KATALOG_DANYCH = "data"  # Katalog na dane wyjściowe
-NAZWA_PLIKU_DANYCH = "symulacja"  # Nazwa bazowa pliku z danymi
-ZAPISZ_CO_KROK = 1  # Co ile kroków zapisywać dane (1 = każdy krok)
+KATALOG_DANYCH_WYJSCIOWYCH = "data"
+NAZWA_BAZOWA_PLIKU_DANYCH = "symulacja"
+ZAPISYWANIE_CO_ILE_KROKOW = 1
 
-# Parametry wizualizacji
-ROZMIAR_WYKRESU = (15, 10)  # Rozmiar wykresu [cale]
-DPI = 100  # Rozdzielczość wykresu
-STYL_WYKRESU = 'seaborn-v0_8-darkgrid'  # Styl wykresów matplotlib
-KOLOR_RAKIETY = 'red'
-KOLOR_TRAJEKTORII = 'blue'
-KOLOR_PALIWA = 'green'
-KOLOR_CIAGU = 'orange'
+ROZMIAR_WYKRESU_CALE = (15, 10)
+ROZDZIELCZOSC_WYKRESU_DPI = 100
+STYL_WYKRESOW_MATPLOTLIB = 'seaborn-v0_8-darkgrid'
+KOLOR_RAKIETY_WYKRES = 'red'
+KOLOR_TRAJEKTORII_WYKRES = 'blue'
+KOLOR_PALIWA_WYKRES = 'green'
+KOLOR_CIAGU_WYKRES = 'orange'

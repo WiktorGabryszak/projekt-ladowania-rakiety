@@ -2,10 +2,6 @@
 
 Kompletna symulacja fizyczna lądowania rakiety na różnych ciałach niebieskich z automatycznym systemem sterowania.
 
-## 🎮 Graficzny Interfejs Użytkownika (GUI)
-
-**Nowa funkcja!** Teraz każdy może symulować lądowania bez znajomości programowania!
-
 ### Szybki Start - GUI
 ```bash
 python gui_symulacja.py
@@ -86,9 +82,8 @@ uruchom_gui.bat
 │   └── test_autopilot.py     # Testy autopilota
 ├── data/                     # Wyjściowe dane symulacji
 ├── docs/                     # Dokumentacja techniczna
-├── requirements.txt          # Zależności Python
-├── test_run.py              # Prosty skrypt testowy
-└── uruchom.bat              # Skrypt uruchomieniowy (Windows)
+├── test_run.py               # Prosty skrypt testowy
+└── uruchom_gui.bat           # Skrypt GUI uruchomieniowy (Windows)
 ```
 
 ## Wymagania
@@ -227,22 +222,10 @@ Optymalny algorytm hamowania oszczędzający paliwo:
 3. Ustala ciąg: `F = m * a_total`
 4. Ogranicza do dostępnego zakresu
 
-## Rozwój projektu
-
-### TODO (pomysły na rozbudowę)
-
-- [ ] Animacja lądowania w czasie rzeczywistym
-- [ ] Różne planety (Mars, Ziemia) z różną grawitacją
-- [ ] Przeszkody terenowe i wybór miejsca lądowania
-- [ ] Kontrola manualna (klawiatura/joystick)
-- [ ] Optymalizacja zużycia paliwa
-- [ ] Interfejs graficzny (GUI)
-- [ ] Wiatr i turbulencje atmosferyczne
-
 ## Licencja
 
 Projekt edukacyjny - wolne użycie.
 
 ## Autor
 
-Wiktor Gabryszak - Projekt symulacji lądowania rakiety
+Wiktor Gabryszak, Jan Borowicki - Projekt symulacji lądowania rakiety

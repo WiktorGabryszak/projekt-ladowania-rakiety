@@ -1,249 +1,141 @@
-"""
-Algorytmy sterowania automatycznego lądowaniem rakiety.
-Zawiera regulatory PID i algorytm suicide burn.
-"""
-
 import numpy as np
 from src import config
 from src import fizyka
 
 
-class PIDController:
-    """
-    Regulator PID (Proportional-Integral-Derivative).
-    """
-    
-    def __init__(self, kp, ki, kd, output_min=0, output_max=None):
-        """
-        Inicjalizuje regulator PID.
+class RegulatorPID:
+    def __init__(self, wspolczynnik_proporcjonalny, wspolczynnik_calkujacy, 
+                 wspolczynnik_rozniczkujacy, wartosc_minimalna=0, wartosc_maksymalna=None):
+        self.wspolczynnik_proporcjonalny = wspolczynnik_proporcjonalny
+        self.wspolczynnik_calkujacy = wspolczynnik_calkujacy
+        self.wspolczynnik_rozniczkujacy = wspolczynnik_rozniczkujacy
+        self.wartosc_minimalna = wartosc_minimalna
+        self.wartosc_maksymalna = wartosc_maksymalna
         
-        Args:
-            kp: Współczynnik proporcjonalny
-            ki: Współczynnik całkujący
-            kd: Współczynnik różniczkujący
-            output_min: Minimalna wartość wyjścia
-            output_max: Maksymalna wartość wyjścia
-        """
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.output_min = output_min
-        self.output_max = output_max
+        self.suma_calkujaca = 0.0
+        self.blad_poprzedni = 0.0
+        self.czy_pierwszy_krok = True
         
-        self.integral = 0.0
-        self.poprzedni_blad = 0.0
-        self.pierwszy_krok = True
+    def resetuj(self):
+        self.suma_calkujaca = 0.0
+        self.blad_poprzedni = 0.0
+        self.czy_pierwszy_krok = True
         
-    def reset(self):
-        """Resetuje stan regulatora."""
-        self.integral = 0.0
-        self.poprzedni_blad = 0.0
-        self.pierwszy_krok = True
+    def oblicz_sterowanie(self, blad_regulacji, krok_czasowy):
+        czlon_proporcjonalny = self.wspolczynnik_proporcjonalny * blad_regulacji
         
-    def oblicz(self, blad, dt):
-        """
-        Oblicza wartość sterowania na podstawie błędu.
+        self.suma_calkujaca += blad_regulacji * krok_czasowy
+        czlon_calkujacy = self.wspolczynnik_calkujacy * self.suma_calkujaca
         
-        Args:
-            blad: Błąd regulacji (wartość_zadana - wartość_aktualna)
-            dt: Krok czasowy [s]
-            
-        Returns:
-            Wartość sterowania
-        """
-        # Człon proporcjonalny
-        p = self.kp * blad
-        
-        # Człon całkujący
-        self.integral += blad * dt
-        i = self.ki * self.integral
-        
-        # Człon różniczkujący
-        if self.pierwszy_krok:
-            d = 0.0
-            self.pierwszy_krok = False
+        if self.czy_pierwszy_krok:
+            czlon_rozniczkujacy = 0.0
+            self.czy_pierwszy_krok = False
         else:
-            d = self.kd * (blad - self.poprzedni_blad) / dt
+            czlon_rozniczkujacy = self.wspolczynnik_rozniczkujacy * (blad_regulacji - self.blad_poprzedni) / krok_czasowy
         
-        self.poprzedni_blad = blad
+        self.blad_poprzedni = blad_regulacji
         
-        # Suma
-        output = p + i + d
+        wartosc_wyjsciowa = czlon_proporcjonalny + czlon_calkujacy + czlon_rozniczkujacy
         
-        # Ograniczenie wyjścia
-        if self.output_max is not None:
-            output = min(output, self.output_max)
-        if self.output_min is not None:
-            output = max(output, self.output_min)
+        if self.wartosc_maksymalna is not None:
+            wartosc_wyjsciowa = min(wartosc_wyjsciowa, self.wartosc_maksymalna)
+        if self.wartosc_minimalna is not None:
+            wartosc_wyjsciowa = max(wartosc_wyjsciowa, self.wartosc_minimalna)
             
-        return output
+        return wartosc_wyjsciowa
 
 
 class Autopilot:
-    """
-    System autopilota do automatycznego lądowania rakiety.
-    """
-    
     def __init__(self, rakieta):
-        """
-        Inicjalizuje autopilota dla danej rakiety.
-        
-        Args:
-            rakieta: Obiekt klasy Rakieta
-        """
         self.rakieta = rakieta
         
-        # Regulator PID dla wysokości/prędkości pionowej
-        self.pid_wysokosc = PIDController(
-            kp=config.KP_WYSOKOSC,
-            ki=config.KI_WYSOKOSC,
-            kd=config.KD_WYSOKOSC,
-            output_min=0,
-            output_max=rakieta.cieg_max
+        self.regulator_wysokosci = RegulatorPID(
+            wspolczynnik_proporcjonalny=config.WSPOLCZYNNIK_PROPORCJONALNY_WYSOKOSC,
+            wspolczynnik_calkujacy=config.WSPOLCZYNNIK_CALKUJACY_WYSOKOSC,
+            wspolczynnik_rozniczkujacy=config.WSPOLCZYNNIK_ROZNICZKUJACY_WYSOKOSC,
+            wartosc_minimalna=0,
+            wartosc_maksymalna=rakieta.cieg_maksymalny
         )
         
-        # Regulator PD dla pozycji poziomej
-        self.pid_poziom = PIDController(
-            kp=config.KP_POZIOM,
-            ki=0.0,
-            kd=config.KD_POZIOM,
-            output_min=-np.pi/6,  # Max ±30 stopni
-            output_max=np.pi/6
+        self.regulator_pozycji_poziomej = RegulatorPID(
+            wspolczynnik_proporcjonalny=config.WSPOLCZYNNIK_PROPORCJONALNY_POZIOM,
+            wspolczynnik_calkujacy=0.0,
+            wspolczynnik_rozniczkujacy=config.WSPOLCZYNNIK_ROZNICZKUJACY_POZIOM,
+            wartosc_minimalna=-np.pi/6,
+            wartosc_maksymalna=np.pi/6
         )
         
-        self.tryb = "normalne"  # "normalne" lub "suicide_burn"
+        self.tryb_ladowania = "normalne"
         
-    def oblicz_sterowanie(self, dt):
-        """
-        Oblicza sterowanie ciągiem i kątem rakiety.
-        
-        Args:
-            dt: Krok czasowy [s]
-            
-        Returns:
-            Tuple (ciąg, kąt) - żądany ciąg [N] i kąt [rad]
-        """
-        # Decyzja o trybie lądowania (znacznie wcześniejsze przełączenie + margines bezpieczeństwa)
-        # Oblicz czy ciąg wystarczy do zatrzymania
-        if self.rakieta.y > 0.1 and self.rakieta.vy < 0:
-            # Czas potrzebny do zatrzymania przy pełnym ciągu
-            a_max = (self.rakieta.cieg_max / self.rakieta.masa_calkowita) - self.rakieta.grawitacja
-            if a_max > 0:
-                czas_hamowania = abs(self.rakieta.vy) / a_max
-                droga_hamowania = abs(self.rakieta.vy) * czas_hamowania / 2
+    def oblicz_sterowanie(self, krok_czasowy):
+        if self.rakieta.pozycja_y > 0.1 and self.rakieta.predkosc_y < 0:
+            przyspieszenie_maksymalne = (self.rakieta.cieg_maksymalny / self.rakieta.masa_calkowita) - self.rakieta.grawitacja
+            if przyspieszenie_maksymalne > 0:
+                czas_hamowania = abs(self.rakieta.predkosc_y) / przyspieszenie_maksymalne
+                droga_hamowania = abs(self.rakieta.predkosc_y) * czas_hamowania / 2
                 
-                # Przełącz na suicide burn z 80% marginesem bezpieczeństwa (zwiększony)
-                if self.rakieta.y < droga_hamowania * 1.8:
-                    self.tryb = "suicide_burn"
+                if self.rakieta.pozycja_y < droga_hamowania * 1.8:
+                    self.tryb_ladowania = "suicide_burn"
                 else:
-                    self.tryb = "normalne"
+                    self.tryb_ladowania = "normalne"
             else:
-                self.tryb = "suicide_burn"  # Ciąg za mały, zacznij od razu!
+                self.tryb_ladowania = "suicide_burn"
         else:
-            self.tryb = "normalne"
+            self.tryb_ladowania = "normalne"
         
-        if self.tryb == "suicide_burn":
-            cieg = self.suicide_burn()
+        if self.tryb_ladowania == "suicide_burn":
+            cieg_zadany = self.ladowanie_suicide_burn()
         else:
-            cieg = self.lad_normalnie(dt)
+            cieg_zadany = self.ladowanie_normalne(krok_czasowy)
         
-        # Kontrola pozycji poziomej
-        kat = self.kontrola_poziomu(dt)
+        kat_nachylenia = self.kontrola_pozycji_poziomej(krok_czasowy)
         
-        return cieg, kat
+        return cieg_zadany, kat_nachylenia
     
-    def lad_normalnie(self, dt):
-        """
-        Normalne lądowanie z regulatorem PID.
-        Cel: osiągnąć prędkość lądowania bezpieczną przy y=0.
-        
-        Args:
-            dt: Krok czasowy [s]
-            
-        Returns:
-            Żądany ciąg [N]
-        """
-        # Docelowa prędkość zależy od wysokości (zmniejszone dla bezpieczeństwa)
-        if self.rakieta.y > 100:
-            predkosc_docelowa = -15.0  # Szybkie opadanie (zmniejszone)
-        elif self.rakieta.y > 20:
-            predkosc_docelowa = -5.0  # Średnie opadanie (zmniejszone)
+    def ladowanie_normalne(self, krok_czasowy):
+        if self.rakieta.pozycja_y > 100:
+            predkosc_docelowa = -15.0
+        elif self.rakieta.pozycja_y > 20:
+            predkosc_docelowa = -5.0
         else:
-            predkosc_docelowa = -1.5   # Bardzo powolne opadanie przy ziemi
+            predkosc_docelowa = -1.5
         
-        # Błąd prędkości
-        blad_predkosci = predkosc_docelowa - self.rakieta.vy
+        blad_predkosci = predkosc_docelowa - self.rakieta.predkosc_y
+        cieg_zadany = self.regulator_wysokosci.oblicz_sterowanie(blad_predkosci, krok_czasowy)
         
-        # PID oblicza wymagany ciąg
-        cieg = self.pid_wysokosc.oblicz(blad_predkosci, dt)
-        
-        return cieg
+        return cieg_zadany
     
-    def suicide_burn(self):
-        """
-        Algorytm suicide burn - optymalny moment zapalenia silnika.
-        Oblicza dokładnie tyle ciągu, ile potrzeba do zatrzymania rakiety przy y=0.
+    def ladowanie_suicide_burn(self):
+        if self.rakieta.pozycja_y <= 0:
+            return self.rakieta.cieg_maksymalny
         
-        Returns:
-            Żądany ciąg [N]
-        """
-        if self.rakieta.y <= 0:
-            return self.rakieta.cieg_max  # Pełny ciąg gdy już na ziemi
-        
-        # Oblicz wymagane przyspieszenie do zatrzymania
-        # v^2 = v0^2 + 2*a*s  => a = (vf^2 - v0^2) / (2*s)
-        # vf = 0 (chcemy się zatrzymać), v0 = vy (aktualna prędkość)
-        if self.rakieta.y > 0.1:
-            # a = -v0^2 / (2*s), ale musimy uwzględnić kierunek
-            # Dla vy < 0 (opadanie): a musi być dodatnie (w górę)
-            a_potrzebne = abs(self.rakieta.vy ** 2) / (2 * self.rakieta.y)
+        if self.rakieta.pozycja_y > 0.1:
+            przyspieszenie_potrzebne = abs(self.rakieta.predkosc_y ** 2) / (2 * self.rakieta.pozycja_y)
         else:
-            a_potrzebne = 0
+            przyspieszenie_potrzebne = 0
         
-        # Dodaj grawitację (musimy ją pokonać + wytworzyć przyspieszenie w górę)
-        a_calkowite = a_potrzebne + self.rakieta.grawitacja
+        przyspieszenie_calkowite = przyspieszenie_potrzebne + self.rakieta.grawitacja
+        cieg_potrzebny = self.rakieta.masa_calkowita * przyspieszenie_calkowite
+        cieg_zadany = max(0, min(cieg_potrzebny, self.rakieta.cieg_maksymalny))
         
-        # Oblicz wymagany ciąg: F = m * a
-        cieg_potrzebny = self.rakieta.masa_calkowita * a_calkowite
+        if self.rakieta.pozycja_y < 10 and self.rakieta.predkosc_y < -3:
+            cieg_zadany = self.rakieta.cieg_maksymalny
+        elif self.rakieta.pozycja_y < 50 and self.rakieta.predkosc_y < -10:
+            cieg_zadany = min(cieg_zadany * 1.5, self.rakieta.cieg_maksymalny)
         
-        # Ograniczenie do maksymalnego ciągu
-        cieg = max(0, min(cieg_potrzebny, self.rakieta.cieg_max))
-        
-        # Jeśli jesteśmy bardzo blisko i nadal szybko opadamy, użyj pełnego ciągu
-        if self.rakieta.y < 10 and self.rakieta.vy < -3:
-            cieg = self.rakieta.cieg_max
-        elif self.rakieta.y < 50 and self.rakieta.vy < -10:
-            # Dodatkowy margines bezpieczeństwa
-            cieg = min(cieg * 1.5, self.rakieta.cieg_max)
-        
-        return cieg
+        return cieg_zadany
     
-    def kontrola_poziomu(self, dt):
-        """
-        Kontroluje pozycję poziomą rakiety poprzez nachylenie.
+    def kontrola_pozycji_poziomej(self, krok_czasowy):
+        blad_pozycji = -self.rakieta.pozycja_x - 2.0 * self.rakieta.predkosc_x
+        kat_nachylenia = self.regulator_pozycji_poziomej.oblicz_sterowanie(blad_pozycji, krok_czasowy)
         
-        Args:
-            dt: Krok czasowy [s]
-            
-        Returns:
-            Kąt nachylenia [rad]
-        """
-        # Cel: x = 0, vx = 0
-        # Błąd to kombinacja pozycji i prędkości
-        blad = -self.rakieta.x - 2.0 * self.rakieta.vx
+        if self.rakieta.pozycja_y < 20:
+            kat_maksymalny = np.pi / 12
+            kat_nachylenia = max(-kat_maksymalny, min(kat_nachylenia, kat_maksymalny))
         
-        # PD oblicza kąt nachylenia
-        kat = self.pid_poziom.oblicz(blad, dt)
-        
-        # Gdy blisko ziemi, ogranicz nachylenie
-        if self.rakieta.y < 20:
-            maks_kat = np.pi / 12  # Max ±15 stopni przy ziemi
-            kat = max(-maks_kat, min(kat, maks_kat))
-        
-        return kat
+        return kat_nachylenia
     
-    def reset(self):
-        """Resetuje stan autopilota."""
-        self.pid_wysokosc.reset()
-        self.pid_poziom.reset()
-        self.tryb = "normalne"
+    def resetuj(self):
+        self.regulator_wysokosci.resetuj()
+        self.regulator_pozycji_poziomej.resetuj()
+        self.tryb_ladowania = "normalne"

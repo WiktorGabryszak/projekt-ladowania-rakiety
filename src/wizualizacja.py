@@ -1,48 +1,27 @@
-"""
-Moduł wizualizacji wyników symulacji.
-Tworzy wykresy trajektorii, prędkości, masy i ciągu rakiety.
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 from src import config
 
 
-def ustaw_styl():
-    """Ustawia styl wykresów matplotlib."""
+def ustaw_styl_wykresow():
     try:
-        plt.style.use(config.STYL_WYKRESU)
+        plt.style.use(config.STYL_WYKRESOW_MATPLOTLIB)
     except:
         plt.style.use('default')
 
 
-def wykres_trajektoria(historia, ax=None):
-    """
-    Rysuje wykres trajektorii rakiety (y vs x).
-    
-    Args:
-        historia: Dict z historią symulacji
-        ax: Obiekt Axes (opcjonalny)
-        
-    Returns:
-        Obiekt Axes
-    """
+def wykres_trajektorii(historia_danych, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
     
-    x = historia['x']
-    y = historia['y']
+    pozycje_x = historia_danych['x']
+    pozycje_y = historia_danych['y']
     
-    # Trajektoria
-    ax.plot(x, y, color=config.KOLOR_TRAJEKTORII, linewidth=2, label='Trajektoria')
-    
-    # Oznaczenie startu i lądowania
-    ax.plot(x[0], y[0], 'go', markersize=10, label='Start')
-    ax.plot(x[-1], y[-1], 'ro', markersize=10, label='Lądowanie')
-    
-    # Powierzchnia
+    ax.plot(pozycje_x, pozycje_y, color=config.KOLOR_TRAJEKTORII_WYKRES, linewidth=2, label='Trajektoria')
+    ax.plot(pozycje_x[0], pozycje_y[0], 'go', markersize=10, label='Start')
+    ax.plot(pozycje_x[-1], pozycje_y[-1], 'ro', markersize=10, label='Lądowanie')
     ax.axhline(y=0, color='brown', linewidth=3, label='Powierzchnia')
-    ax.fill_between([min(x)-100, max(x)+100], -50, 0, color='brown', alpha=0.3)
+    ax.fill_between([min(pozycje_x)-100, max(pozycje_x)+100], -50, 0, color='brown', alpha=0.3)
     
     ax.set_xlabel('Pozycja pozioma [m]', fontsize=12)
     ax.set_ylabel('Wysokość [m]', fontsize=12)
@@ -54,24 +33,14 @@ def wykres_trajektoria(historia, ax=None):
     return ax
 
 
-def wykres_wysokosc_czas(historia, ax=None):
-    """
-    Rysuje wykres wysokości w funkcji czasu.
-    
-    Args:
-        historia: Dict z historią symulacji
-        ax: Obiekt Axes (opcjonalny)
-        
-    Returns:
-        Obiekt Axes
-    """
+def wykres_wysokosci_w_czasie(historia_danych, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
     
-    czas = historia['czas']
-    y = historia['y']
+    czas = historia_danych['czas']
+    wysokosci = historia_danych['y']
     
-    ax.plot(czas, y, color=config.KOLOR_TRAJEKTORII, linewidth=2)
+    ax.plot(czas, wysokosci, color=config.KOLOR_TRAJEKTORII_WYKRES, linewidth=2)
     ax.axhline(y=0, color='red', linestyle='--', alpha=0.5, label='Powierzchnia')
     
     ax.set_xlabel('Czas [s]', fontsize=12)
@@ -83,30 +52,20 @@ def wykres_wysokosc_czas(historia, ax=None):
     return ax
 
 
-def wykres_predkosc_czas(historia, ax=None):
-    """
-    Rysuje wykres prędkości w funkcji czasu.
-    
-    Args:
-        historia: Dict z historią symulacji
-        ax: Obiekt Axes (opcjonalny)
-        
-    Returns:
-        Obiekt Axes
-    """
+def wykres_predkosci_w_czasie(historia_danych, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
     
-    czas = historia['czas']
-    vy = historia['vy']
-    vx = historia['vx']
-    predkosc = historia['predkosc']
+    czas = historia_danych['czas']
+    predkosc_pionowa = historia_danych['vy']
+    predkosc_pozioma = historia_danych['vx']
+    predkosc_calkowita = historia_danych['predkosc']
     
-    ax.plot(czas, vy, label='Prędkość pionowa', linewidth=2)
-    ax.plot(czas, vx, label='Prędkość pozioma', linewidth=2)
-    ax.plot(czas, predkosc, label='Prędkość całkowita', linewidth=2, linestyle='--')
+    ax.plot(czas, predkosc_pionowa, label='Prędkość pionowa', linewidth=2)
+    ax.plot(czas, predkosc_pozioma, label='Prędkość pozioma', linewidth=2)
+    ax.plot(czas, predkosc_calkowita, label='Prędkość całkowita', linewidth=2, linestyle='--')
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-    ax.axhline(y=-config.PREDKOSC_LADOWANIA_MAX, color='red', linestyle='--', 
+    ax.axhline(y=-config.PREDKOSC_LADOWANIA_MAKSYMALNA, color='red', linestyle='--', 
                alpha=0.5, label='Maks. bezpieczna prędkość')
     
     ax.set_xlabel('Czas [s]', fontsize=12)
@@ -138,7 +97,7 @@ def wykres_masa_czas(historia, ax=None):
     
     ax.plot(czas, masa_calkowita, label='Masa całkowita', linewidth=2)
     ax.plot(czas, masa_paliwa, label='Masa paliwa', 
-            linewidth=2, color=config.KOLOR_PALIWA)
+            linewidth=2, color=config.KOLOR_PALIWA_WYKRES)
     
     ax.set_xlabel('Czas [s]', fontsize=12)
     ax.set_ylabel('Masa [kg]', fontsize=12)
@@ -166,8 +125,8 @@ def wykres_cieg_czas(historia, ax=None):
     czas = historia['czas']
     cieg = historia['cieg']
     
-    ax.plot(czas, cieg, color=config.KOLOR_CIAGU, linewidth=2)
-    ax.axhline(y=config.CIEG_MAX, color='red', linestyle='--', 
+    ax.plot(czas, cieg, color=config.KOLOR_CIAGU_WYKRES, linewidth=2)
+    ax.axhline(y=config.CIEG_MAKSYMALNY_SILNIKA, color='red', linestyle='--', 
                alpha=0.5, label='Maksymalny ciąg')
     
     ax.set_xlabel('Czas [s]', fontsize=12)
@@ -179,28 +138,18 @@ def wykres_cieg_czas(historia, ax=None):
     return ax
 
 
-def wykres_energia_czas(historia, ax=None):
-    """
-    Rysuje wykres energii w funkcji czasu.
-    
-    Args:
-        historia: Dict z historią symulacji
-        ax: Obiekt Axes (opcjonalny)
-        
-    Returns:
-        Obiekt Axes
-    """
+def wykres_energii_w_czasie(historia_danych, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
     
-    czas = historia['czas']
-    ek = np.array(historia['energia_kinetyczna'])
-    ep = np.array(historia['energia_potencjalna'])
-    energia_calk = ek + ep
+    czas = historia_danych['czas']
+    energia_kinetyczna = np.array(historia_danych['energia_kinetyczna'])
+    energia_potencjalna = np.array(historia_danych['energia_potencjalna'])
+    energia_calkowita = energia_kinetyczna + energia_potencjalna
     
-    ax.plot(czas, ek / 1000, label='Energia kinetyczna', linewidth=2)
-    ax.plot(czas, ep / 1000, label='Energia potencjalna', linewidth=2)
-    ax.plot(czas, energia_calk / 1000, label='Energia całkowita', 
+    ax.plot(czas, energia_kinetyczna / 1000, label='Energia kinetyczna', linewidth=2)
+    ax.plot(czas, energia_potencjalna / 1000, label='Energia potencjalna', linewidth=2)
+    ax.plot(czas, energia_calkowita / 1000, label='Energia całkowita', 
             linewidth=2, linestyle='--', color='black')
     
     ax.set_xlabel('Czas [s]', fontsize=12)
@@ -212,72 +161,54 @@ def wykres_energia_czas(historia, ax=None):
     return ax
 
 
-def wizualizuj_symulacje(wyniki, zapisz=False, nazwa_pliku='symulacja.png'):
-    """
-    Tworzy kompleksową wizualizację wyników symulacji.
+def wizualizuj_wyniki_symulacji(wyniki, czy_zapisac=False, nazwa_pliku='symulacja.png'):
+    ustaw_styl_wykresow()
+
     
-    Args:
-        wyniki: Dict z wynikami symulacji
-        zapisz: Czy zapisać wykres do pliku
-        nazwa_pliku: Nazwa pliku do zapisu
-    """
-    ustaw_styl()
+    historia_danych = wyniki['historia']
     
-    historia = wyniki['historia']
+    figura = plt.figure(figsize=config.ROZMIAR_WYKRESU_CALE)
     
-    # Tworzenie subplotów
-    fig = plt.figure(figsize=config.ROZMIAR_WYKRESU)
+    wykres1 = plt.subplot(3, 2, 1)
+    wykres_trajektorii(historia_danych, wykres1)
     
-    # Layout 3x2
-    ax1 = plt.subplot(3, 2, 1)
-    wykres_trajektoria(historia, ax1)
+    wykres2 = plt.subplot(3, 2, 2)
+    wykres_wysokosci_w_czasie(historia_danych, wykres2)
     
-    ax2 = plt.subplot(3, 2, 2)
-    wykres_wysokosc_czas(historia, ax2)
+    wykres3 = plt.subplot(3, 2, 3)
+    wykres_predkosci_w_czasie(historia_danych, wykres3)
     
-    ax3 = plt.subplot(3, 2, 3)
-    wykres_predkosc_czas(historia, ax3)
+    wykres4 = plt.subplot(3, 2, 4)
+    wykres_cieg_czas(historia_danych, wykres4)
     
-    ax4 = plt.subplot(3, 2, 4)
-    wykres_cieg_czas(historia, ax4)
+    wykres5 = plt.subplot(3, 2, 5)
+    wykres_masa_czas(historia_danych, wykres5)
     
-    ax5 = plt.subplot(3, 2, 5)
-    wykres_masa_czas(historia, ax5)
+    wykres6 = plt.subplot(3, 2, 6)
+    wykres_energii_w_czasie(historia_danych, wykres6)
     
-    ax6 = plt.subplot(3, 2, 6)
-    wykres_energia_czas(historia, ax6)
+    status_tekst = "SUKCES" if wyniki['sukces'] else "NIEPOWODZENIE"
+    kolor_statusu = 'green' if wyniki['sukces'] else 'red'
     
-    # Tytuł główny
-    status = "✓ SUKCES" if wyniki['sukces'] else "✗ NIEPOWODZENIE"
-    kolor = 'green' if wyniki['sukces'] else 'red'
-    
-    # Informacja o planecie
-    planeta_info = ""
+    informacja_o_planecie = ""
     if 'planeta' in wyniki:
-        planeta_info = f" na planecie {wyniki['planeta']['nazwa']} (g={wyniki['planeta']['grawitacja']:.2f} m/s²)"
+        informacja_o_planecie = f" na planecie {wyniki['planeta']['nazwa']} (g={wyniki['planeta']['grawitacja']:.2f} m/s²)"
     
-    fig.suptitle(f'Symulacja lądowania rakiety{planeta_info} - {status}\n{wyniki["komunikat"]}',
-                 fontsize=16, fontweight='bold', color=kolor)
+    figura.suptitle(f'Symulacja lądowania rakiety{informacja_o_planecie} - {status_tekst}\n{wyniki["komunikat"]}',
+                 fontsize=16, fontweight='bold', color=kolor_statusu)
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     
-    if zapisz:
+    if czy_zapisac:
         import os
-        os.makedirs(config.KATALOG_DANYCH, exist_ok=True)
-        sciezka = os.path.join(config.KATALOG_DANYCH, nazwa_pliku)
-        plt.savefig(sciezka, dpi=config.DPI, bbox_inches='tight')
-        print(f"Wykres zapisany do: {sciezka}")
+        os.makedirs(config.KATALOG_DANYCH_WYJSCIOWYCH, exist_ok=True)
+        sciezka_pliku = os.path.join(config.KATALOG_DANYCH_WYJSCIOWYCH, nazwa_pliku)
+        plt.savefig(sciezka_pliku, dpi=config.ROZDZIELCZOSC_WYKRESU_DPI, bbox_inches='tight')
+        print(f"Wykres zapisany do: {sciezka_pliku}")
     
     plt.show()
 
 
-def animacja_ladowania(historia):
-    """
-    Tworzy prostą animację lądowania (placeholder).
-    
-    Args:
-        historia: Dict z historią symulacji
-    """
-    # TODO: Implementacja animacji z użyciem matplotlib.animation
+def animacja_ladowania(historia_danych):
     print("Animacja nie jest jeszcze zaimplementowana.")
     pass

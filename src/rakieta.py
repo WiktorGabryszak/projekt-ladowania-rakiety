@@ -1,173 +1,107 @@
-"""
-Klasa Rakieta reprezentująca stan i dynamikę pojazdu kosmicznego.
-"""
-
 import numpy as np
 from src import fizyka
 from src import config
 
 
 class Rakieta:
-    """
-    Reprezentuje rakietę z pełnym stanem fizycznym.
-    
-    Attributes:
-        x: Pozycja pozioma [m]
-        y: Wysokość [m]
-        vx: Prędkość pozioma [m/s]
-        vy: Prędkość pionowa [m/s] (dodatnia w górę)
-        masa_pusta: Masa konstrukcji rakiety [kg]
-        masa_paliwa: Aktualna masa paliwa [kg]
-        cieg_max: Maksymalny ciąg silnika [N]
-        zuzycie_paliwa: Zużycie paliwa przy pełnym ciągu [kg/s]
-        grawitacja: Przyspieszenie grawitacyjne [m/s^2]
-        cieg: Aktualny ciąg silnika [N]
-        kat: Kąt nachylenia rakiety [rad] (0 = pionowo)
-    """
-    
     def __init__(self, 
-                 x=config.POZYCJA_X_POCZATKOWA,
-                 y=config.WYSOKOSC_POCZATKOWA,
-                 vx=config.PREDKOSC_X_POCZATKOWA,
-                 vy=config.PREDKOSC_POCZATKOWA,
-                 masa_pusta=config.MASA_PUSTA,
-                 masa_paliwa=config.MASA_PALIWA_POCZATKOWA,
-                 cieg_max=config.CIEG_MAX,
-                 zuzycie_paliwa=config.ZUZYCIE_PALIWA,
-                 grawitacja=config.GRAWITACJA):
-        """
-        Inicjalizuje rakietę z podanymi parametrami.
-        """
-        self.x = x
-        self.y = y
-        self.vx = vx
-        self.vy = vy
-        self.masa_pusta = masa_pusta
-        self.masa_paliwa = masa_paliwa
-        self.cieg_max = cieg_max
-        self.zuzycie_paliwa = zuzycie_paliwa
+                 pozycja_x=config.POZYCJA_POZIOMA_STARTOWA,
+                 pozycja_y=config.WYSOKOSC_STARTOWA,
+                 predkosc_x=config.PREDKOSC_POZIOMA_STARTOWA,
+                 predkosc_y=config.PREDKOSC_PIONOWA_STARTOWA,
+                 masa_rakiety_pusta=config.MASA_RAKIETY_PUSTA,
+                 masa_paliwa_aktualna=config.MASA_PALIWA_STARTOWA,
+                 cieg_maksymalny=config.CIEG_MAKSYMALNY_SILNIKA,
+                 zuzycie_paliwa=config.ZUZYCIE_PALIWA_NA_SEKUNDE,
+                 grawitacja=config.GRAWITACJA_DOMYSLNA):
+        self.pozycja_x = pozycja_x
+        self.pozycja_y = pozycja_y
+        self.predkosc_x = predkosc_x
+        self.predkosc_y = predkosc_y
+        self.masa_rakiety_pusta = masa_rakiety_pusta
+        self.masa_paliwa_aktualna = masa_paliwa_aktualna
+        self.cieg_maksymalny = cieg_maksymalny
+        self.zuzycie_paliwa_na_sekunde = zuzycie_paliwa
         self.grawitacja = grawitacja
-        self.cieg = 0.0
-        self.kat = 0.0  # Kąt nachylenia (0 = pionowo w górę)
-        
+        self.cieg_aktualny = 0.0
+        self.kat_nachylenia = 0.0
+
     @property
     def masa_calkowita(self):
-        """Całkowita masa rakiety."""
-        return self.masa_pusta + self.masa_paliwa
+        return self.masa_rakiety_pusta + self.masa_paliwa_aktualna
     
     @property
-    def ma_paliwo(self):
-        """Czy rakieta ma jeszcze paliwo."""
-        return self.masa_paliwa > 0
+    def czy_ma_paliwo(self):
+        return self.masa_paliwa_aktualna > 0
     
     @property
-    def predkosc(self):
-        """Prędkość całkowita [m/s]."""
-        return np.sqrt(self.vx**2 + self.vy**2)
+    def predkosc_calkowita(self):
+        return np.sqrt(self.predkosc_x**2 + self.predkosc_y**2)
     
     @property
     def energia_kinetyczna(self):
-        """Energia kinetyczna [J]."""
-        return fizyka.energia_kinetyczna(self.masa_calkowita, self.predkosc)
+        return fizyka.energia_kinetyczna(self.masa_calkowita, self.predkosc_calkowita)
     
     @property
     def energia_potencjalna(self):
-        """Energia potencjalna [J]."""
-        return fizyka.energia_potencjalna(self.masa_calkowita, self.y, self.grawitacja)
+        return fizyka.energia_potencjalna(self.masa_calkowita, self.pozycja_y, self.grawitacja)
     
-    def ustaw_cieg(self, cieg):
-        """
-        Ustawia ciąg silnika (ograniczony do dostępnego zakresu).
-        
-        Args:
-            cieg: Żądany ciąg [N]
-        """
-        # Ograniczenie do maksymalnego ciągu
-        cieg = max(0, min(cieg, self.cieg_max))
-        
-        # Jeśli brak paliwa, ciąg = 0
-        if not self.ma_paliwo:
-            cieg = 0.0
-            
-        self.cieg = cieg
+    def ustaw_cieg(self, cieg_zadany):
+        cieg_zadany = max(0, min(cieg_zadany, self.cieg_maksymalny))
+        if not self.czy_ma_paliwo:
+            cieg_zadany = 0.0
+        self.cieg_aktualny = cieg_zadany
     
     def ustaw_kat(self, kat):
-        """
-        Ustawia kąt nachylenia rakiety.
-        
-        Args:
-            kat: Kąt w radianach (0 = pionowo w górę)
-        """
-        self.kat = kat
+        self.kat_nachylenia = kat
     
-    def aktualizuj(self, dt):
-        """
-        Aktualizuje stan rakiety o krok czasowy dt.
-        Używa metody Eulera do integracji równań ruchu.
+    def aktualizuj(self, krok_czasowy):
+        skladowa_ciagu_x = self.cieg_aktualny * np.sin(self.kat_nachylenia)
+        skladowa_ciagu_y = self.cieg_aktualny * np.cos(self.kat_nachylenia)
         
-        Args:
-            dt: Krok czasowy [s]
-        """
-        # Składowe ciągu
-        cieg_x = self.cieg * np.sin(self.kat)
-        cieg_y = self.cieg * np.cos(self.kat)
-        
-        # Przyspieszenia
         if self.masa_calkowita > 0:
-            ax = cieg_x / self.masa_calkowita
-            ay = (cieg_y / self.masa_calkowita) - self.grawitacja
+            przyspieszenie_x = skladowa_ciagu_x / self.masa_calkowita
+            przyspieszenie_y = (skladowa_ciagu_y / self.masa_calkowita) - self.grawitacja
         else:
-            ax = 0
-            ay = -self.grawitacja
+            przyspieszenie_x = 0
+            przyspieszenie_y = -self.grawitacja
         
-        # Aktualizacja prędkości (metoda Eulera)
-        self.vx += ax * dt
-        self.vy += ay * dt
+        self.predkosc_x += przyspieszenie_x * krok_czasowy
+        self.predkosc_y += przyspieszenie_y * krok_czasowy
         
-        # Aktualizacja pozycji
-        self.x += self.vx * dt
-        self.y += self.vy * dt
+        self.pozycja_x += self.predkosc_x * krok_czasowy
+        self.pozycja_y += self.predkosc_y * krok_czasowy
         
-        # Zużycie paliwa
-        if self.cieg > 0 and self.ma_paliwo:
-            zuzycie = fizyka.zuzycie_paliwa_dt(
-                self.cieg, dt, self.cieg_max, self.zuzycie_paliwa
+        if self.cieg_aktualny > 0 and self.czy_ma_paliwo:
+            zuzycie = fizyka.zuzycie_paliwa_w_kroku_czasowym(
+                self.cieg_aktualny, krok_czasowy, self.cieg_maksymalny, self.zuzycie_paliwa_na_sekunde
             )
-            self.masa_paliwa = max(0, self.masa_paliwa - zuzycie)
-            if self.masa_paliwa <= 0:
-                self.cieg = 0.0
+            self.masa_paliwa_aktualna = max(0, self.masa_paliwa_aktualna - zuzycie)
+            if self.masa_paliwa_aktualna <= 0:
+                self.cieg_aktualny = 0.0
         
-        # Zapobiegnięcie spadnięciu poniżej powierzchni
-        if self.y < 0:
-            self.y = 0
+        if self.pozycja_y < 0:
+            self.pozycja_y = 0
     
-    def wylad(self):
-        """Sprawdza czy rakieta wylądowała."""
-        return self.y <= config.DOKLADNOSC_LADOWANIA
+    def czy_wyladowal(self):
+        return self.pozycja_y <= config.DOKLADNOSC_WYKRYWANIA_LADOWANIA
     
-    def get_stan(self):
-        """
-        Zwraca słownik z aktualnym stanem rakiety.
-        
-        Returns:
-            Dict ze wszystkimi parametrami stanu
-        """
+    def pobierz_stan(self):
         return {
-            'x': self.x,
-            'y': self.y,
-            'vx': self.vx,
-            'vy': self.vy,
-            'predkosc': self.predkosc,
+            'x': self.pozycja_x,
+            'y': self.pozycja_y,
+            'vx': self.predkosc_x,
+            'vy': self.predkosc_y,
+            'predkosc': self.predkosc_calkowita,
             'masa_calkowita': self.masa_calkowita,
-            'masa_paliwa': self.masa_paliwa,
-            'cieg': self.cieg,
-            'kat': self.kat,
+            'masa_paliwa': self.masa_paliwa_aktualna,
+            'cieg': self.cieg_aktualny,
+            'kat': self.kat_nachylenia,
             'energia_kinetyczna': self.energia_kinetyczna,
             'energia_potencjalna': self.energia_potencjalna
         }
     
     def __str__(self):
-        """Tekstowa reprezentacja stanu rakiety."""
-        return (f"Rakieta(y={self.y:.1f}m, vy={self.vy:.1f}m/s, "
-                f"masa={self.masa_calkowita:.1f}kg, paliwo={self.masa_paliwa:.1f}kg, "
-                f"ciąg={self.cieg:.0f}N)")
+        return (f"Rakieta(y={self.pozycja_y:.1f}m, vy={self.predkosc_y:.1f}m/s, "
+                f"masa={self.masa_calkowita:.1f}kg, paliwo={self.masa_paliwa_aktualna:.1f}kg, "
+                f"ciąg={self.cieg_aktualny:.0f}N)")
