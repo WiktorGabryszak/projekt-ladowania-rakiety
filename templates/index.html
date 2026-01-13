@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symulator Lądowania Rakiety</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Symulator Lądowania Rakiety</h1>
+            <p class="subtitle">Zadaj parametry i obserwuj automatyczne lądowanie</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel - Parameters -->
+            <section class="panel parameters-panel">
+                <h2>Parametry Symulacji</h2>
+
+                <!-- Planet Selection -->
+                <div class="param-group">
+                    <label>Wybór planety</label>
+                    <div id="planet-grid" class="planet-grid">
+                        <!-- Planety zostaną załadowane z API -->
+                    </div>
+                    <p id="planet-info" class="planet-info"></p>
+                </div>
+
+                <!-- Sliders -->
+                <div class="param-group">
+                    <label for="wysokosc">Wysokość początkowa</label>
+                    <div class="slider-container">
+                        <input type="range" id="wysokosc" min="500" max="5000" value="1000" step="100">
+                        <span class="slider-value" id="wysokosc-value">1000 m</span>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label for="predkosc_y">Prędkość opadania</label>
+                    <div class="slider-container">
+                        <input type="range" id="predkosc_y" min="10" max="150" value="50" step="5">
+                        <span class="slider-value" id="predkosc_y-value">50 m/s</span>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label for="masa_paliwa">Masa paliwa</label>
+                    <div class="slider-container">
+                        <input type="range" id="masa_paliwa" min="100" max="1000" value="500" step="50">
+                        <span class="slider-value" id="masa_paliwa-value">500 kg</span>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label for="masa_rakiety">Masa rakiety (pusta)</label>
+                    <div class="slider-container">
+                        <input type="range" id="masa_rakiety" min="500" max="2000" value="1000" step="100">
+                        <span class="slider-value" id="masa_rakiety-value">1000 kg</span>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label for="moc_silnika">Moc silnika (ciag max)</label>
+                    <div class="slider-container">
+                        <input type="range" id="moc_silnika" min="5000" max="50000" value="15000" step="1000">
+                        <span class="slider-value" id="moc_silnika-value">15000 N</span>
+                    </div>
+                </div>
+
+                <!-- Launch Button -->
+                <button id="launch-btn" class="launch-btn">
+                    Uruchom Symulację
+                </button>
+            </section>
+
+            <!-- Right Panel - Results -->
+            <section class="panel results-panel">
+                <h2>Wyniki Symulacji</h2>
+
+                <!-- Status -->
+                <div id="status-container" class="status-container">
+                    <div id="status" class="status status-ready">
+                        Gotowy do startu
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Czas lotu</div>
+                        <div class="stat-value" id="stat-czas">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Predkosc ladowania</div>
+                        <div class="stat-value" id="stat-predkosc">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Pozostale paliwo</div>
+                        <div class="stat-value" id="stat-paliwo">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Zuzyto paliwa</div>
+                        <div class="stat-value" id="stat-zuzycie">-</div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Wysokosc w czasie</h3>
+                        <canvas id="chart-altitude"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Predkosc w czasie</h3>
+                        <canvas id="chart-velocity"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Ciag silnika</h3>
+                        <canvas id="chart-thrust"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Masa paliwa w czasie</h3>
+                        <canvas id="chart-fuel"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Symulator Lądowania Rakiety © 2026 | Autopilot zawsze włączony</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

@@ -11,7 +11,6 @@ def main():
                         help=f'Krok czasowy symulacji [s] (domyślnie: {config.KROK_CZASOWY_SYMULACJI})')
     parser.add_argument('--max-czas', type=float, default=config.CZAS_MAKSYMALNY_SYMULACJI,
                         help=f'Maksymalny czas symulacji [s] (domyślnie: {config.CZAS_MAKSYMALNY_SYMULACJI})')
-    parser.add_argument('--no-autopilot', action='store_true', help='Wyłącz autopilota (swobodny spadek)')
     parser.add_argument('--no-viz', action='store_true', help='Nie pokazuj wizualizacji')
     parser.add_argument('--zapisz', action='store_true', help='Zapisz dane i wykresy do pliku')
     parser.add_argument('--quiet', action='store_true', help='Tryb cichy (bez komunikatów w trakcie)')
@@ -23,7 +22,7 @@ def main():
     symulacja = Symulacja(
         krok_czasowy=argumenty.dt,
         czas_maksymalny=argumenty.max_czas,
-        czy_autopilot_wlaczony=not argumenty.no_autopilot
+        czy_autopilot_wlaczony=True
     )
     
     wyniki = symulacja.uruchom(czy_wyswietlac_postep=not argumenty.quiet)

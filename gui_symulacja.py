@@ -135,12 +135,6 @@ class SymulacjaGUI:
             10, 150, 50, "m/s"
         )
         
-        self.predkosc_x_slider = self.create_modern_slider(
-            params_card,
-            "Predkosc pozioma",
-            0, 50, 10, "m/s"
-        )
-        
         self.paliwo_slider = self.create_modern_slider(
             params_card,
             "Masa paliwa",
@@ -152,46 +146,12 @@ class SymulacjaGUI:
             "Masa rakiety",
             500, 2000, 1000, "kg"
         )
-
         
-        # Karta opcji
-        options_card = self.create_card(main_frame, "OPCJE SYMULACJI")
-        
-        self.autopilot_var = tk.BooleanVar(value=True)
-        autopilot_frame = tk.Frame(options_card, bg=self.bg_card)
-        autopilot_frame.pack(fill=tk.X, padx=15, pady=8)
-        
-        autopilot_cb = tk.Checkbutton(
-            autopilot_frame,
-            text="Włącz autopilota (automatyczne sterowanie)",
-            variable=self.autopilot_var,
-            bg=self.bg_card,
-            fg=self.text_primary,
-            selectcolor=self.bg_card,
-            activebackground=self.bg_card,
-            activeforeground=self.text_primary,
-            font=("Inter", 10),
-            relief=tk.FLAT
+        self.silnik_slider = self.create_modern_slider(
+            params_card,
+            "Moc silnika (ciag max)",
+            2000, 20000, 8000, "N"
         )
-        autopilot_cb.pack(anchor=tk.W)
-        
-        self.verbose_var = tk.BooleanVar(value=True)
-        verbose_frame = tk.Frame(options_card, bg=self.bg_card)
-        verbose_frame.pack(fill=tk.X, padx=15, pady=8)
-        
-        verbose_cb = tk.Checkbutton(
-            verbose_frame,
-            text="Pokaż szczegółowy przebieg symulacji",
-            variable=self.verbose_var,
-            bg=self.bg_card,
-            fg=self.text_primary,
-            selectcolor=self.bg_card,
-            activebackground=self.bg_card,
-            activeforeground=self.text_primary,
-            font=("Inter", 10),
-            relief=tk.FLAT
-        )
-        verbose_cb.pack(anchor=tk.W, pady=(0, 6))
         
         # Przycisk uruchomienia
         button_container = tk.Frame(main_frame, bg=self.bg_primary)
@@ -326,23 +286,22 @@ class SymulacjaGUI:
             planeta = self.planeta_var.get()
             wysokosc = float(self.wysokosc_slider.get())
             predkosc_y = -float(self.predkosc_slider.get())  # Ujemna bo w dół
-            predkosc_x = float(self.predkosc_x_slider.get())
             masa_paliwa = float(self.paliwo_slider.get())
             masa_pusta = float(self.masa_slider.get())
-            autopilot = self.autopilot_var.get()
-            verbose = self.verbose_var.get()
+            moc_silnika = float(self.silnik_slider.get())
             
             # Zaktualizuj config
             config.WYSOKOSC_STARTOWA = wysokosc
             config.PREDKOSC_PIONOWA_STARTOWA = predkosc_y
-            config.PREDKOSC_POZIOMA_STARTOWA = predkosc_x
+            config.PREDKOSC_POZIOMA_STARTOWA = 0.0  # Rakieta ląduje pionowo
             config.MASA_PALIWA_STARTOWA = masa_paliwa
             config.MASA_RAKIETY_PUSTA = masa_pusta
+            config.CIEG_MAKSYMALNY_SILNIKA = moc_silnika
             
             symulacja = Symulacja(
                 krok_czasowy=0.1,
                 czas_maksymalny=300,
-                czy_autopilot_wlaczony=autopilot,
+                czy_autopilot_wlaczony=True,
                 planeta=planeta
             )
             
@@ -350,7 +309,7 @@ class SymulacjaGUI:
             print("URUCHAMIANIE SYMULACJI")
             print("="*60)
             
-            wyniki = symulacja.uruchom(czy_wyswietlac_postep=verbose)
+            wyniki = symulacja.uruchom(czy_wyswietlac_postep=True)
             
             if wyniki['sukces']:
                 status_text = "● SUKCES! Rakieta wylądowała bezpiecznie!"

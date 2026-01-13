@@ -1,18 +1,21 @@
-KROK_CZASOWY_SYMULACJI = 0.1
+KROK_CZASOWY_SYMULACJI = 0.01  # Maly krok czasowy dla dokladnosci (metoda Eulera)
 CZAS_MAKSYMALNY_SYMULACJI = 300.0
 DOKLADNOSC_WYKRYWANIA_LADOWANIA = 0.01
 
 WYSOKOSC_STARTOWA = 1000.0
-PREDKOSC_PIONOWA_STARTOWA = -50.0
+PREDKOSC_PIONOWA_STARTOWA = 0.0  # Rakieta startuje bez predkosci (swobodny spadek)
 POZYCJA_POZIOMA_STARTOWA = 0.0
-PREDKOSC_POZIOMA_STARTOWA = 10.0
+PREDKOSC_POZIOMA_STARTOWA = 0.0  # Rakieta laduje pionowo
 
 MASA_RAKIETY_PUSTA = 1000.0
 MASA_PALIWA_STARTOWA = 500.0
-CIEG_MAKSYMALNY_SILNIKA = 8000.0
-ZUZYCIE_PALIWA_NA_SEKUNDE = 0.5
+CIEG_MAKSYMALNY_SILNIKA = 15000.0  # Sila ciagu silnika [N]
+
+# Impuls wlasciwy silnika (Isp) - typowa wartosc dla silnikow rakietowych
+IMPULS_WLASCIWY = 300.0  # [s] - uzywany do obliczania zuzycia paliwa
 
 GRAWITACJA_DOMYSLNA = 1.62
+GRAWITACJA_ZIEMIA = 9.81  # Stala do obliczen Isp
 
 # Definicje planet
 PLANETY = {

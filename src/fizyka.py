@@ -1,27 +1,48 @@
 import numpy as np
+from src import config
 
 GRAWITACJA_KSIEZYC = 1.62
 GRAWITACJA_ZIEMIA = 9.81
 
 MASA_RAKIETY_PUSTA = 1000.0
 MASA_PALIWA_MAKSYMALNA = 500.0
-CIEG_MAKSYMALNY = 4000.0
-ZUZYCIE_PALIWA_NA_SEKUNDE = 0.5
+CIEG_MAKSYMALNY = 15000.0
 
 
 def przyspieszenie(masa_calkowita, cieg_silnika, grawitacja=GRAWITACJA_KSIEZYC):
+    """Oblicza przyspieszenie rakiety: a = F/m - g"""
     if masa_calkowita <= 0:
         return 0.0
     return (cieg_silnika / masa_calkowita) - grawitacja
 
 
 def zuzycie_paliwa_w_kroku_czasowym(cieg_silnika, krok_czasowy, 
-                                     cieg_maksymalny=CIEG_MAKSYMALNY, 
-                                     zuzycie_maksymalne=ZUZYCIE_PALIWA_NA_SEKUNDE):
-    if cieg_silnika <= 0 or cieg_maksymalny <= 0:
+                                     impuls_wlasciwy=None,
+                                     grawitacja_ref=None):
+    """
+    Zużycie paliwa proporcjonalne do ciągu silnika.
+    Wzor fizyczny: dm/dt = F_thrust / (Isp * g)
+    gdzie:
+    - F_thrust: sila ciagu [N]
+    - Isp: impuls wlasciwy silnika [s] (typowo 300s)
+    - g: przyspieszenie ziemskie 9.81 m/s^2 (stala referencyjna)
+    
+    Ten wzor wynika z rownania pedu: F = dm/dt * v_e
+    gdzie v_e = Isp * g to predkosc wylotowa gazow.
+    """
+    if cieg_silnika <= 0:
         return 0.0
-    proporcja_ciagu = cieg_silnika / cieg_maksymalny
-    return proporcja_ciagu * zuzycie_maksymalne * krok_czasowy
+    
+    # Uzyj wartosci z config jesli nie podano
+    if impuls_wlasciwy is None:
+        impuls_wlasciwy = config.IMPULS_WLASCIWY
+    if grawitacja_ref is None:
+        grawitacja_ref = config.GRAWITACJA_ZIEMIA
+    
+    # dm/dt = F / (Isp * g)
+    # dm = F * dt / (Isp * g)
+    zuzycie = (cieg_silnika * krok_czasowy) / (impuls_wlasciwy * grawitacja_ref)
+    return zuzycie
 
 
 def energia_kinetyczna(masa_calkowita, predkosc_calkowita):

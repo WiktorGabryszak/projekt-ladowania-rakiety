@@ -5,24 +5,23 @@ from src import config
 
 class Rakieta:
     def __init__(self, 
-                 pozycja_x=config.POZYCJA_POZIOMA_STARTOWA,
-                 pozycja_y=config.WYSOKOSC_STARTOWA,
-                 predkosc_x=config.PREDKOSC_POZIOMA_STARTOWA,
-                 predkosc_y=config.PREDKOSC_PIONOWA_STARTOWA,
-                 masa_rakiety_pusta=config.MASA_RAKIETY_PUSTA,
-                 masa_paliwa_aktualna=config.MASA_PALIWA_STARTOWA,
-                 cieg_maksymalny=config.CIEG_MAKSYMALNY_SILNIKA,
-                 zuzycie_paliwa=config.ZUZYCIE_PALIWA_NA_SEKUNDE,
-                 grawitacja=config.GRAWITACJA_DOMYSLNA):
-        self.pozycja_x = pozycja_x
-        self.pozycja_y = pozycja_y
-        self.predkosc_x = predkosc_x
-        self.predkosc_y = predkosc_y
-        self.masa_rakiety_pusta = masa_rakiety_pusta
-        self.masa_paliwa_aktualna = masa_paliwa_aktualna
-        self.cieg_maksymalny = cieg_maksymalny
-        self.zuzycie_paliwa_na_sekunde = zuzycie_paliwa
-        self.grawitacja = grawitacja
+                 pozycja_x=None,
+                 pozycja_y=None,
+                 predkosc_x=None,
+                 predkosc_y=None,
+                 masa_rakiety_pusta=None,
+                 masa_paliwa_aktualna=None,
+                 cieg_maksymalny=None,
+                 grawitacja=None):
+        # Uzywamy aktualnych wartosci z config (nie domyslnych przy imporcie)
+        self.pozycja_x = pozycja_x if pozycja_x is not None else config.POZYCJA_POZIOMA_STARTOWA
+        self.pozycja_y = pozycja_y if pozycja_y is not None else config.WYSOKOSC_STARTOWA
+        self.predkosc_x = predkosc_x if predkosc_x is not None else config.PREDKOSC_POZIOMA_STARTOWA
+        self.predkosc_y = predkosc_y if predkosc_y is not None else config.PREDKOSC_PIONOWA_STARTOWA
+        self.masa_rakiety_pusta = masa_rakiety_pusta if masa_rakiety_pusta is not None else config.MASA_RAKIETY_PUSTA
+        self.masa_paliwa_aktualna = masa_paliwa_aktualna if masa_paliwa_aktualna is not None else config.MASA_PALIWA_STARTOWA
+        self.cieg_maksymalny = cieg_maksymalny if cieg_maksymalny is not None else config.CIEG_MAKSYMALNY_SILNIKA
+        self.grawitacja = grawitacja if grawitacja is not None else config.GRAWITACJA_DOMYSLNA
         self.cieg_aktualny = 0.0
         self.kat_nachylenia = 0.0
 
@@ -73,8 +72,9 @@ class Rakieta:
         self.pozycja_y += self.predkosc_y * krok_czasowy
         
         if self.cieg_aktualny > 0 and self.czy_ma_paliwo:
+            # Zuzycie paliwa wg wzoru: dm/dt = F / (Isp * g)
             zuzycie = fizyka.zuzycie_paliwa_w_kroku_czasowym(
-                self.cieg_aktualny, krok_czasowy, self.cieg_maksymalny, self.zuzycie_paliwa_na_sekunde
+                self.cieg_aktualny, krok_czasowy
             )
             self.masa_paliwa_aktualna = max(0, self.masa_paliwa_aktualna - zuzycie)
             if self.masa_paliwa_aktualna <= 0:

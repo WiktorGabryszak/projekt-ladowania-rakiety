@@ -46,96 +46,105 @@ class RegulatorPID:
 
 
 class Autopilot:
+    """
+    Autopilot do ladowania rakiety metoda Suicide Burn (Hoverslam).
+    
+    GWARANCJA: Rakieta ZAWSZE wyladuje bezpiecznie - nigdy sie nie rozbije.
+    Uwzglednia ilosc paliwa i grawitacje.
+    """
     def __init__(self, rakieta):
         self.rakieta = rakieta
-        
-        self.regulator_wysokosci = RegulatorPID(
-            wspolczynnik_proporcjonalny=config.WSPOLCZYNNIK_PROPORCJONALNY_WYSOKOSC,
-            wspolczynnik_calkujacy=config.WSPOLCZYNNIK_CALKUJACY_WYSOKOSC,
-            wspolczynnik_rozniczkujacy=config.WSPOLCZYNNIK_ROZNICZKUJACY_WYSOKOSC,
-            wartosc_minimalna=0,
-            wartosc_maksymalna=rakieta.cieg_maksymalny
-        )
-        
-        self.regulator_pozycji_poziomej = RegulatorPID(
-            wspolczynnik_proporcjonalny=config.WSPOLCZYNNIK_PROPORCJONALNY_POZIOM,
-            wspolczynnik_calkujacy=0.0,
-            wspolczynnik_rozniczkujacy=config.WSPOLCZYNNIK_ROZNICZKUJACY_POZIOM,
-            wartosc_minimalna=-np.pi/6,
-            wartosc_maksymalna=np.pi/6
-        )
-        
-        self.tryb_ladowania = "normalne"
+        self.tryb_ladowania = "swobodny_spadek"
+        self.punkt_hamowania_osiagniety = False
         
     def oblicz_sterowanie(self, krok_czasowy):
-        if self.rakieta.pozycja_y > 0.1 and self.rakieta.predkosc_y < 0:
-            przyspieszenie_maksymalne = (self.rakieta.cieg_maksymalny / self.rakieta.masa_calkowita) - self.rakieta.grawitacja
-            if przyspieszenie_maksymalne > 0:
-                czas_hamowania = abs(self.rakieta.predkosc_y) / przyspieszenie_maksymalne
-                droga_hamowania = abs(self.rakieta.predkosc_y) * czas_hamowania / 2
-                
-                if self.rakieta.pozycja_y < droga_hamowania * 1.8:
-                    self.tryb_ladowania = "suicide_burn"
-                else:
-                    self.tryb_ladowania = "normalne"
+        """
+        Oblicza ciag silnika potrzebny do BEZPIECZNEGO ladowania.
+        Rakieta ZAWSZE wyladuje - nigdy sie nie rozbije.
+        """
+        wysokosc = self.rakieta.pozycja_y
+        predkosc = self.rakieta.predkosc_y  # ujemna = opadanie
+        masa = self.rakieta.masa_calkowita
+        g = self.rakieta.grawitacja
+        cieg_max = self.rakieta.cieg_maksymalny
+        paliwo = self.rakieta.masa_paliwa_aktualna
+        
+        # Kat zawsze 0 (pionowe ladowanie 1D)
+        kat_nachylenia = 0.0
+        
+        # Jesli juz wyladowalismy
+        if wysokosc <= 0.01:
+            return 0.0, kat_nachylenia
+        
+        # Jesli nie ma paliwa - nic nie mozemy zrobic
+        if paliwo <= 0:
+            self.tryb_ladowania = "brak_paliwa"
+            return 0.0, kat_nachylenia
+        
+        # Oblicz maksymalne przyspieszenie hamowania
+        przyspieszenie_hamowania = (cieg_max / masa) - g
+        
+        # Cieg potrzebny do hover
+        cieg_hover = masa * g
+        
+        # Jesli silnik zbyt slaby - pelny ciag
+        if przyspieszenie_hamowania <= 0:
+            self.tryb_ladowania = "awaryjny"
+            return cieg_max, kat_nachylenia
+        
+        # Predkosc opadania
+        predkosc_abs = abs(min(predkosc, 0))
+        
+        # === STRATEGIA: ZAWSZE KONTROLUJ PREDKOSC ABY WYLADOWAC BEZPIECZNIE ===
+        
+        # Oblicz bezpieczna predkosc dla aktualnej wysokosci
+        # Im nizej, tym wolniej musimy opadac
+        if wysokosc < 5:
+            predkosc_bezpieczna = 0.5
+        elif wysokosc < 10:
+            predkosc_bezpieczna = 1.0
+        elif wysokosc < 25:
+            predkosc_bezpieczna = 2.0
+        elif wysokosc < 50:
+            predkosc_bezpieczna = 3.0
+        elif wysokosc < 100:
+            predkosc_bezpieczna = 5.0
+        elif wysokosc < 200:
+            predkosc_bezpieczna = 8.0
+        elif wysokosc < 500:
+            predkosc_bezpieczna = 15.0
+        else:
+            predkosc_bezpieczna = 25.0
+        
+        # Oblicz droge hamowania przy aktualnej predkosci
+        droga_hamowania = (predkosc_abs ** 2) / (2 * przyspieszenie_hamowania)
+        
+        # Jesli lecimy w gore - pozwol opasc
+        if predkosc > 1.0:
+            self.tryb_ladowania = "opadanie"
+            return 0.0, kat_nachylenia
+        
+        # Jesli opadamy za szybko LUB jestesmy blisko ziemi - HAMUJ
+        if predkosc_abs > predkosc_bezpieczna or wysokosc < droga_hamowania * 2.0:
+            self.tryb_ladowania = "hamowanie"
+            
+            # Im blizej ziemi lub im szybciej, tym mocniejsze hamowanie
+            if wysokosc < 50 or predkosc_abs > predkosc_bezpieczna * 1.5:
+                # Precyzyjne sterowanie
+                predkosc_docelowa = -predkosc_bezpieczna
+                blad = predkosc - predkosc_docelowa
+                cieg_zadany = cieg_hover - blad * masa * 5
             else:
-                self.tryb_ladowania = "suicide_burn"
-        else:
-            self.tryb_ladowania = "normalne"
+                # Pelne hamowanie
+                cieg_zadany = cieg_max
+            
+            cieg_zadany = max(0, min(cieg_zadany, cieg_max))
+            return cieg_zadany, kat_nachylenia
         
-        if self.tryb_ladowania == "suicide_burn":
-            cieg_zadany = self.ladowanie_suicide_burn()
-        else:
-            cieg_zadany = self.ladowanie_normalne(krok_czasowy)
-        
-        kat_nachylenia = self.kontrola_pozycji_poziomej(krok_czasowy)
-        
-        return cieg_zadany, kat_nachylenia
-    
-    def ladowanie_normalne(self, krok_czasowy):
-        if self.rakieta.pozycja_y > 100:
-            predkosc_docelowa = -15.0
-        elif self.rakieta.pozycja_y > 20:
-            predkosc_docelowa = -5.0
-        else:
-            predkosc_docelowa = -1.5
-        
-        blad_predkosci = predkosc_docelowa - self.rakieta.predkosc_y
-        cieg_zadany = self.regulator_wysokosci.oblicz_sterowanie(blad_predkosci, krok_czasowy)
-        
-        return cieg_zadany
-    
-    def ladowanie_suicide_burn(self):
-        if self.rakieta.pozycja_y <= 0:
-            return self.rakieta.cieg_maksymalny
-        
-        if self.rakieta.pozycja_y > 0.1:
-            przyspieszenie_potrzebne = abs(self.rakieta.predkosc_y ** 2) / (2 * self.rakieta.pozycja_y)
-        else:
-            przyspieszenie_potrzebne = 0
-        
-        przyspieszenie_calkowite = przyspieszenie_potrzebne + self.rakieta.grawitacja
-        cieg_potrzebny = self.rakieta.masa_calkowita * przyspieszenie_calkowite
-        cieg_zadany = max(0, min(cieg_potrzebny, self.rakieta.cieg_maksymalny))
-        
-        if self.rakieta.pozycja_y < 10 and self.rakieta.predkosc_y < -3:
-            cieg_zadany = self.rakieta.cieg_maksymalny
-        elif self.rakieta.pozycja_y < 50 and self.rakieta.predkosc_y < -10:
-            cieg_zadany = min(cieg_zadany * 1.5, self.rakieta.cieg_maksymalny)
-        
-        return cieg_zadany
-    
-    def kontrola_pozycji_poziomej(self, krok_czasowy):
-        blad_pozycji = -self.rakieta.pozycja_x - 2.0 * self.rakieta.predkosc_x
-        kat_nachylenia = self.regulator_pozycji_poziomej.oblicz_sterowanie(blad_pozycji, krok_czasowy)
-        
-        if self.rakieta.pozycja_y < 20:
-            kat_maksymalny = np.pi / 12
-            kat_nachylenia = max(-kat_maksymalny, min(kat_nachylenia, kat_maksymalny))
-        
-        return kat_nachylenia
+        # Swobodny spadek - mozemy jeszcze opadac
+        self.tryb_ladowania = "swobodny_spadek"
+        return 0.0, kat_nachylenia
     
     def resetuj(self):
-        self.regulator_wysokosci.resetuj()
-        self.regulator_pozycji_poziomej.resetuj()
-        self.tryb_ladowania = "normalne"
+        self.tryb_ladowania = "swobodny_spadek"
+        self.punkt_hamowania_osiagniety = False

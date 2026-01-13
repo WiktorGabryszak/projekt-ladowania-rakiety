@@ -15,7 +15,8 @@ class Symulacja:
                  planeta='ksiezyc'):
         self.krok_czasowy = krok_czasowy
         self.czas_maksymalny = czas_maksymalny
-        self.czy_autopilot_wlaczony = czy_autopilot_wlaczony
+        # Autopilot jest zawsze włączony - parametr ignorowany
+        self.czy_autopilot_wlaczony = True
         
         if planeta not in config.PLANETY:
             print(f"Nieznana planeta '{planeta}', uzywam Ksiezyca")
@@ -27,10 +28,8 @@ class Symulacja:
         
         self.rakieta = Rakieta(grawitacja=self.grawitacja)
         
-        if czy_autopilot_wlaczony:
-            self.autopilot = Autopilot(self.rakieta)
-        else:
-            self.autopilot = None
+        # Autopilot zawsze inicjalizowany
+        self.autopilot = Autopilot(self.rakieta)
         
         self.historia_danych = {
             'czas': [],
@@ -63,10 +62,10 @@ class Symulacja:
     def wykonaj_krok_symulacji(self):
         self.zapisz_aktualny_stan()
         
-        if self.czy_autopilot_wlaczony and self.autopilot:
-            cieg_zadany, kat_nachylenia = self.autopilot.oblicz_sterowanie(self.krok_czasowy)
-            self.rakieta.ustaw_cieg(cieg_zadany)
-            self.rakieta.ustaw_kat(kat_nachylenia)
+        # Autopilot zawsze aktywny
+        cieg_zadany, kat_nachylenia = self.autopilot.oblicz_sterowanie(self.krok_czasowy)
+        self.rakieta.ustaw_cieg(cieg_zadany)
+        self.rakieta.ustaw_kat(kat_nachylenia)
         
         self.rakieta.aktualizuj(self.krok_czasowy)
         
@@ -113,11 +112,11 @@ class Symulacja:
             print(f"Grawitacja: {self.grawitacja:.2f} m/s²")
             print(f"Warunki początkowe:")
             print(f"  Wysokość: {self.rakieta.pozycja_y:.1f} m")
-            print(f"  Prędkość pionowa: {self.rakieta.predkosc_y:.1f} m/s")
-            print(f"  Prędkość pozioma: {self.rakieta.predkosc_x:.1f} m/s")
+            print(f"  Prędkość opadania: {abs(self.rakieta.predkosc_y):.1f} m/s")
+            print(f"  Masa rakiety (pusta): {self.rakieta.masa_rakiety_pusta:.1f} kg")
+            print(f"  Masa paliwa: {self.rakieta.masa_paliwa_aktualna:.1f} kg")
             print(f"  Masa całkowita: {self.rakieta.masa_calkowita:.1f} kg")
-            print(f"  Paliwo: {self.rakieta.masa_paliwa_aktualna:.1f} kg")
-            print(f"  Autopilot: {'TAK' if self.czy_autopilot_wlaczony else 'NIE'}")
+            print(f"  Moc silnika (ciąg max): {self.rakieta.cieg_maksymalny:.0f} N")
             print("=" * 60)
             print()
         
