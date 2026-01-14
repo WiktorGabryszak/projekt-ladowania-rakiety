@@ -20,7 +20,7 @@ class RegulatorPID:
     - de/dt = pochodna błędu (zmiana błędu)
     """
     
-    def __init__(self, kp, ki, kd, max_wyjscie, rate_limit_procent=5.0):
+    def __init__(self, kp, ki, kd, max_wyjscie, rate_limit_procent=0.5):
         """
         Inicjalizacja regulatora PID.
         
@@ -30,13 +30,15 @@ class RegulatorPID:
             kd: Wzmocnienie członu różniczkującego
             max_wyjscie: Maksymalna wartość sygnału sterującego (ciąg max)
             rate_limit_procent: Maksymalna zmiana sygnału jako % max_wyjscie na krok
+                                (przy dt=0.01s, 0.5% daje równoważność 5% przy dt=0.1s)
         """
         self.kp = kp
         self.ki = ki
         self.kd = kd
         self.max_wyjscie = max_wyjscie
         
-        # Rate Limiter: max zmiana = 5% ciągu maksymalnego na krok czasowy
+        # Rate Limiter: max zmiana = 0.5% ciągu maksymalnego na krok czasowy (dt=0.01s)
+        # Równoważne 5% przy dt=0.1s (10x mniejszy krok = 10x mniejszy limit)
         self.rate_limit = (rate_limit_procent / 100.0) * max_wyjscie
         
         # Zmienne stanu regulatora
@@ -72,7 +74,7 @@ class RegulatorPID:
         2. Członem proporcjonalnym (P = Kp * e)
         3. Członem całkującym (I = Ki * suma(e * dt))
         4. Członem różniczkującym (D = Kd * de/dt)
-        5. Nasyceniem (saturation) do zakresu [0, max]
+        5. Nasyceniem (saturation) do zakresu [0, max_ciag]
         6. Ograniczeniem szybkości zmian (rate limiter)
         
         Args:

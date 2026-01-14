@@ -114,20 +114,51 @@ class Rakieta:
         }
 
 
-def oblicz_predkosc_zadana(wysokosc, a_max):
+# Domyślne wartości dla dwufazowego lotu (mogą być nadpisane przez GUI)
+DOMYSLNA_WYSOKOSC_HAMOWANIA = 1000.0  # Wysokość rozpoczęcia hamowania [m]
+DOMYSLNA_PREDKOSC_PRZELOTU = -50.0    # Prędkość w fazie przelotu [m/s]
+
+
+def oblicz_a_req(predkosc_przelotu, wysokosc_hamowania):
+    """
+    Oblicza wymagane przyspieszenie hamujące dla zadanych parametrów.
+    
+    Wzór: a_req = v^2 / (2 * h)
+    
+    Gwarantuje ciągłość profilu prędkości - przy wysokości hamowania
+    prędkość zadana równa jest prędkości przelotu.
+    
+    Args:
+        predkosc_przelotu: Prędkość w fazie przelotu [m/s] (wartość bezwzględna)
+        wysokosc_hamowania: Wysokość rozpoczęcia hamowania [m]
+        
+    Returns:
+        float: Wymagane przyspieszenie hamujące [m/s^2]
+    """
+    return (predkosc_przelotu ** 2) / (2 * wysokosc_hamowania)
+
+
+def oblicz_predkosc_zadana(wysokosc, predkosc_przelotu=DOMYSLNA_PREDKOSC_PRZELOTU, 
+                           wysokosc_hamowania=DOMYSLNA_WYSOKOSC_HAMOWANIA):
     """
     Oblicza prędkość zadaną (trajektorię odniesienia) dla regulatora PID.
     
-    Strategia: Prędkość maleje wraz z wysokością tak, aby rakieta
-    mogła bezpiecznie wyhamować przy maksymalnym dostępnym przyspieszeniu.
+    Dwufazowa strategia lotu:
     
-    Wzór: v_target = -sqrt(2 * a_max * h)
+    FAZA PRZELOTU (h > wysokosc_hamowania):
+        - Cel: Utrzymanie stałej prędkości opadania (np. -50 m/s)
+        - Jeśli rakieta spada wolniej, silnik wyłączony
+        - Jeśli prędkość przekroczy zadaną, PID generuje ciąg
     
-    Znak ujemny oznacza ruch w dół (opadanie).
+    FAZA LĄDOWANIA (h <= wysokosc_hamowania):
+        - Cel: Płynne wyhamowanie do 0 m/s przy h=0
+        - Wzór: v_target = -sqrt(2 * a_req * h)
+        - a_req jest automatycznie obliczane dla ciągłości profilu
     
     Args:
         wysokosc: Aktualna wysokość rakiety [m]
-        a_max: Maksymalne dostępne przyspieszenie hamujące [m/s^2]
+        predkosc_przelotu: Prędkość zadana w fazie przelotu [m/s] (ujemna)
+        wysokosc_hamowania: Wysokość rozpoczęcia fazy hamowania [m]
         
     Returns:
         float: Prędkość zadana [m/s] (ujemna = opadanie)
@@ -137,9 +168,15 @@ def oblicz_predkosc_zadana(wysokosc, a_max):
     if wysokosc <= 0:
         return 0.0
     
-    # v_target = -sqrt(2 * a_max * h)
-    # Ujemna, bo rakieta opada (ruch w dół)
-    return -math.sqrt(2 * a_max * wysokosc)
+    if wysokosc > wysokosc_hamowania:
+        # FAZA PRZELOTU: Utrzymuj stałą prędkość opadania
+        return predkosc_przelotu
+    else:
+        # FAZA LĄDOWANIA: Płynne hamowanie wg profilu
+        # Oblicz a_req dla ciągłości: a_req = v^2 / (2*h)
+        a_req = oblicz_a_req(abs(predkosc_przelotu), wysokosc_hamowania)
+        # v_target = -sqrt(2 * a_req * h)
+        return -math.sqrt(2 * a_req * wysokosc)
 
 
 # Słownik z przyspieszeniami grawitacyjnymi dla różnych planet
